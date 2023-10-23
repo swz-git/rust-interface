@@ -1,6 +1,6 @@
 use flatbuffers::FlatBufferBuilder;
 
-use crate::rlbot_generated::rlbot::flat::{self, PlayerClass};
+use crate::rlbot_generated::rlbot::flat::{self};
 pub use crate::rlbot_generated::rlbot::flat::{
     BallBouncinessOption, BallMaxSpeedOption, BallSizeOption, BallTypeOption, BallWeightOption,
     BoostOption, BoostStrengthOption, DemolishOption, ExistingMatchBehavior, GameMap, GameMode,
@@ -129,6 +129,13 @@ impl PlayerLoadout {
     }
 }
 
+pub enum PlayerClass {
+    RLBotPlayer,
+    HumanPlayer,
+    PsyonixBotPlayer(f32),
+    PartyMemberBotPlayer,
+}
+
 pub struct PlayerConfiguration {
     pub player_class: PlayerClass,
     pub name: Option<String>,
@@ -150,11 +157,45 @@ impl PlayerConfiguration {
             Some(x) => Some(x.to_flat(&mut builder)),
             None => None,
         };
+        let (variety, variety_type) = match self.player_class {
+            PlayerClass::RLBotPlayer => {
+                let player = flat::RLBotPlayer::create(builder, &flat::RLBotPlayerArgs {});
+                (
+                    Some(player.as_union_value()),
+                    flat::PlayerClass(player.value() as u8),
+                )
+            }
+            PlayerClass::HumanPlayer => {
+                let player = flat::HumanPlayer::create(builder, &flat::HumanPlayerArgs {});
+                (
+                    Some(player.as_union_value()),
+                    flat::PlayerClass(player.value() as u8),
+                )
+            }
+            PlayerClass::PsyonixBotPlayer(skill) => {
+                let player = flat::PsyonixBotPlayer::create(
+                    builder,
+                    &flat::PsyonixBotPlayerArgs { botSkill: skill },
+                );
+                (
+                    Some(player.as_union_value()),
+                    flat::PlayerClass(player.value() as u8),
+                )
+            }
+            PlayerClass::PartyMemberBotPlayer => {
+                let player =
+                    flat::PartyMemberBotPlayer::create(builder, &flat::PartyMemberBotPlayerArgs {});
+                (
+                    Some(player.as_union_value()),
+                    flat::PlayerClass(player.value() as u8),
+                )
+            }
+        };
         flat::PlayerConfiguration::create(
             &mut builder,
             &flat::PlayerConfigurationArgs {
-                variety: None, // TODO: What???
-                variety_type: self.player_class,
+                variety,
+                variety_type,
                 name,
                 team: self.team,
                 loadout,
