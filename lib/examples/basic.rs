@@ -1,4 +1,4 @@
-use rlbot_match_manager::{
+use rlbot_match_manager_lib::{
     self,
     flat_wrapper::{
         ExistingMatchBehavior, GameMap, GameMode, MatchSettings, PlayerClass, PlayerConfiguration,
