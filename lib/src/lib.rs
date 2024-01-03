@@ -1,74 +1,153 @@
 use std::{
-    error::Error,
-    io::{self, Write},
+    io::{self, Read, Write},
     net::TcpStream,
 };
 
-use flatbuffers::FlatBufferBuilder;
+use flatbuffers::{FlatBufferBuilder, InvalidFlatbuffer};
 use thiserror::Error;
 
-#[allow(non_snake_case)]
-mod rlbot_generated;
+pub(crate) mod flat_wrapper;
 
-pub mod flat_wrapper;
+pub mod rlbot {
+    pub use crate::flat_wrapper::*;
+}
+
+use rlbot::*;
 
 #[derive(Error, Debug)]
-pub enum MatchManagerError {
+pub enum PacketParseError {
+    #[error("Invalid data type: {0}")]
+    InvalidDataType(u16),
+    #[error("Unpacking flatbuffer failed")]
+    InvalidFlatbuffer(#[from] InvalidFlatbuffer),
+}
+
+#[derive(Error, Debug)]
+pub enum RLBotError {
     #[error("Connection to RLBot failed")]
     Connection(#[from] io::Error),
-    #[error("Failed to start match")]
-    MatchStart(String),
+    #[error("Parsing packet failed")]
+    PacketParseError(#[from] PacketParseError),
 }
 
 #[allow(dead_code)]
-enum PacketDataType {
-    GameTickPacket = 1,
-    FieldInfo = 2,
-    MatchSettings = 3,
-    PlayerInput = 4,
-    DesiredGameState = 7,
-    RenderGroup = 8,
-    QuickChat = 9,
-    BallPrediction = 10,
-    ReadyMessage = 11,
-    MessagePacket = 12,
+#[derive(Debug)]
+pub enum Packet {
+    GameTickPacket(GameTickPacket),
+    FieldInfo(FieldInfo),
+    MatchSettings(MatchSettings),
+    PlayerInput(PlayerInput),
+    DesiredGameState(DesiredGameState),
+    RenderGroup(RenderGroup),
+    QuickChat(QuickChat),
+    BallPrediction(BallPrediction),
+    ReadyMessage(ReadyMessage),
+    MessagePacket(MessagePacket),
 }
+
+impl Packet {
+    pub fn data_type(&self) -> u16 {
+        match *self {
+            Packet::GameTickPacket(_) => 1,
+            Packet::FieldInfo(_) => 2,
+            Packet::MatchSettings(_) => 3,
+            Packet::PlayerInput(_) => 4,
+            Packet::DesiredGameState(_) => 7,
+            Packet::RenderGroup(_) => 8,
+            Packet::QuickChat(_) => 9,
+            Packet::BallPrediction(_) => 10,
+            Packet::ReadyMessage(_) => 11,
+            Packet::MessagePacket(_) => 12,
+        }
+    }
+
+    pub fn build(self) -> Vec<u8> {
+        let mut builder = FlatBufferBuilder::new();
+
+        // TODO: make this mess nicer
+        macro_rules! p {
+            ($x:ident) => {{
+                let root = $x.pack(&mut builder);
+                builder.finish(root, None)
+            }};
+        }
+
+        match self {
+            Packet::GameTickPacket(x) => p!(x),
+            Packet::FieldInfo(x) => p!(x),
+            Packet::MatchSettings(x) => p!(x),
+            Packet::PlayerInput(x) => p!(x),
+            Packet::DesiredGameState(x) => p!(x),
+            Packet::RenderGroup(x) => p!(x),
+            Packet::QuickChat(x) => p!(x),
+            Packet::BallPrediction(x) => p!(x),
+            Packet::ReadyMessage(x) => p!(x),
+            Packet::MessagePacket(x) => p!(x),
+        }
+        builder.finished_data().to_owned()
+    }
+
+    pub fn from_payload(data_type: u16, payload: Vec<u8>) -> Result<Self, PacketParseError> {
+        // TODO: make this mess nicer
+        macro_rules! p {
+            ($x:ty) => {{
+                flatbuffers::root::<$x>(&payload)?.unpack()
+            }};
+        }
+
+        use flat_wrapper::rlbot_generated::rlbot::flat;
+
+        match data_type {
+            1 => return Ok(Self::GameTickPacket(p!(flat::GameTickPacket))),
+            2 => return Ok(Self::FieldInfo(p!(flat::FieldInfo))),
+            3 => return Ok(Self::MatchSettings(p!(flat::MatchSettings))),
+            4 => return Ok(Self::PlayerInput(p!(flat::PlayerInput))),
+            7 => return Ok(Self::DesiredGameState(p!(flat::DesiredGameState))),
+            8 => return Ok(Self::RenderGroup(p!(flat::RenderGroup))),
+            9 => return Ok(Self::QuickChat(p!(flat::QuickChat))),
+            10 => return Ok(Self::BallPrediction(p!(flat::BallPrediction))),
+            11 => return Ok(Self::ReadyMessage(p!(flat::ReadyMessage))),
+            12 => return Ok(Self::MessagePacket(p!(flat::MessagePacket))),
+            _ => return Err(PacketParseError::InvalidDataType(data_type)),
+        };
+    }
+}
+
 pub struct RLBotConnection {
     stream: TcpStream,
 }
 
 impl RLBotConnection {
-    fn send_packet(
-        &mut self,
-        data_type: PacketDataType,
-        payload: &[u8],
-    ) -> Result<(), Box<dyn Error>> {
-        let data_type_bin = (data_type as u16).to_be_bytes();
+    pub fn send_packet(&mut self, packet: Packet) -> Result<(), RLBotError> {
+        let data_type_bin = packet.data_type().to_be_bytes();
+        let payload = packet.build();
         let data_len_bin = (payload.len() as u16).to_be_bytes();
 
         self.stream.write_all(&data_type_bin)?;
         self.stream.write_all(&data_len_bin)?;
-        self.stream.write_all(payload)?;
+        self.stream.write_all(&payload)?;
         Ok(())
     }
 
-    pub fn start_match(
-        &mut self,
-        match_settings: flat_wrapper::MatchSettings,
-    ) -> Result<(), MatchManagerError> {
-        let match_settings_flat = {
-            let mut builder = FlatBufferBuilder::new();
-            let match_settings_flat = match_settings.to_flat(&mut builder);
-            builder.finish(match_settings_flat, None);
-            let data = builder.finished_data().to_owned();
-            data
-        };
+    pub fn recv_packet(&mut self) -> Result<Packet, RLBotError> {
+        let mut buf = [0u8, 0u8];
 
-        self.send_packet(PacketDataType::MatchSettings, &match_settings_flat)
-            .map_err(|x| MatchManagerError::MatchStart(x.to_string()))
+        self.stream.read_exact(&mut buf)?;
+        let data_type = u16::from_be_bytes(buf);
+
+        self.stream.read_exact(&mut buf)?;
+        let data_len = u16::from_be_bytes(buf);
+
+        let mut buf = vec![0u8; data_len as usize];
+        self.stream.read_exact(&mut buf)?;
+        let data_payload = buf;
+
+        let packet = Packet::from_payload(data_type, data_payload)?;
+
+        Ok(packet)
     }
 
-    pub fn new(addr: &str) -> Result<RLBotConnection, MatchManagerError> {
+    pub fn new(addr: &str) -> Result<RLBotConnection, RLBotError> {
         let stream = TcpStream::connect(addr)?;
         Ok(RLBotConnection { stream })
     }

@@ -1,5 +1,5 @@
 [package]
-name = "rlbot-match-manager-lib"
+name = "rlbot-lib"
 version = "0.1.0"
 edition = "2021"
 

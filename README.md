@@ -1,6 +1,4 @@
-# rlbot-match-manager
-
-A library and cli tool that can start matches with rlbot
+# rlbot-rs
 
 ## CLI
 
@@ -10,10 +8,12 @@ A library and cli tool that can start matches with rlbot
 
 ### Usage
 
-`rlbot-mm --help`
+`rlbot-mr --help`
 
 ## Flatbuffers
 
-Use this command to generate `lib/src/rlbot_generated.rs` from `lib/rlbot.fbs`:
+Use this command to generate `lib/src/flat_wrapper/rlbot_generated.rs` from `lib/rlbot.fbs`:
 
-`cd lib && flatc -r -o src rlbot.fbs`
+`cd lib && flatc -r --gen-object-api --object-suffix "Object" -o src/flat_wrapper rlbot.fbs`
+
+You also need to remove the lines saying `#[non_exhaustive]` as otherwise we can't export the flatbuffers types.

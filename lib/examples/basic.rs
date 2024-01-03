@@ -1,9 +1,10 @@
-use rlbot_match_manager_lib::{
+use rlbot_lib::{
     self,
-    flat_wrapper::{
-        ExistingMatchBehavior, GameMap, GameMode, MatchSettings, PlayerClass, PlayerConfiguration,
+    rlbot::{
+        ExistingMatchBehavior, GameMap, GameMode, MatchLength, MatchSettings, MutatorSettings,
+        PlayerClass, PlayerConfiguration, PlayerLoadout, RLBotPlayer,
     },
-    RLBotConnection,
+    Packet, RLBotConnection,
 };
 
 fn main() {
@@ -14,36 +15,35 @@ fn main() {
     println!("Starting match");
 
     let match_settings = MatchSettings {
-        player_configurations: Some(vec![
+        playerConfigurations: Some(vec![
             PlayerConfiguration {
-                player_class: PlayerClass::RLBotPlayer,
-                name: Some("Test bot".to_owned()),
+                variety: PlayerClass::RLBotPlayer(Box::new(RLBotPlayer {})),
+                name: Some("BOT1".to_owned()),
                 team: 0,
-                loadout: None,
-                spawn_id: 0,
+                loadout: Some(Box::new(PlayerLoadout::default())),
+                spawnId: 0,
             },
             PlayerConfiguration {
-                player_class: PlayerClass::RLBotPlayer,
-                name: Some("Test bot 2".to_owned()),
+                variety: PlayerClass::RLBotPlayer(Box::new(RLBotPlayer {})),
+                name: Some("BOT2".to_owned()),
                 team: 1,
-                loadout: None,
-                spawn_id: 1,
+                loadout: Some(Box::new(PlayerLoadout::default())),
+                spawnId: 1,
             },
         ]),
-        game_mode: GameMode::Soccer,
-        game_map: GameMap::DFHStadium,
-        skip_replays: false,
-        instant_start: true,
-        mutator_settings: None,
-        existing_match_behavior: ExistingMatchBehavior::Restart,
-        enable_lockstep: false,
-        enable_rendering: true,
-        enable_state_setting: true,
-        auto_save_replay: false,
-        game_map_upk: None,
+        gameMode: GameMode::Soccer,
+        gameMap: GameMap::DFHStadium,
+        // mutatorSettings CANNOT be None, otherwise RLBot will crash
+        mutatorSettings: Some(Box::new(MutatorSettings {
+            matchLength: MatchLength::Unlimited,
+            ..Default::default()
+        })),
+        existingMatchBehavior: ExistingMatchBehavior::Restart,
+        enableRendering: true,
+        ..Default::default()
     };
 
     rlbot_connection
-        .start_match(match_settings)
-        .expect("start_match")
+        .send_packet(Packet::MatchSettings(match_settings))
+        .expect("start_match");
 }
