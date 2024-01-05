@@ -6,6 +6,8 @@ use std::{
 use flatbuffers::{FlatBufferBuilder, InvalidFlatbuffer};
 use thiserror::Error;
 
+pub mod bots;
+
 pub(crate) mod flat_wrapper;
 
 pub mod rlbot {
@@ -98,18 +100,18 @@ impl Packet {
         use flat_wrapper::rlbot_generated::rlbot::flat;
 
         match data_type {
-            1 => return Ok(Self::GameTickPacket(p!(flat::GameTickPacket))),
-            2 => return Ok(Self::FieldInfo(p!(flat::FieldInfo))),
-            3 => return Ok(Self::MatchSettings(p!(flat::MatchSettings))),
-            4 => return Ok(Self::PlayerInput(p!(flat::PlayerInput))),
-            7 => return Ok(Self::DesiredGameState(p!(flat::DesiredGameState))),
-            8 => return Ok(Self::RenderGroup(p!(flat::RenderGroup))),
-            9 => return Ok(Self::QuickChat(p!(flat::QuickChat))),
-            10 => return Ok(Self::BallPrediction(p!(flat::BallPrediction))),
-            11 => return Ok(Self::ReadyMessage(p!(flat::ReadyMessage))),
-            12 => return Ok(Self::MessagePacket(p!(flat::MessagePacket))),
-            _ => return Err(PacketParseError::InvalidDataType(data_type)),
-        };
+            1 => Ok(Self::GameTickPacket(p!(flat::GameTickPacket))),
+            2 => Ok(Self::FieldInfo(p!(flat::FieldInfo))),
+            3 => Ok(Self::MatchSettings(p!(flat::MatchSettings))),
+            4 => Ok(Self::PlayerInput(p!(flat::PlayerInput))),
+            7 => Ok(Self::DesiredGameState(p!(flat::DesiredGameState))),
+            8 => Ok(Self::RenderGroup(p!(flat::RenderGroup))),
+            9 => Ok(Self::QuickChat(p!(flat::QuickChat))),
+            10 => Ok(Self::BallPrediction(p!(flat::BallPrediction))),
+            11 => Ok(Self::ReadyMessage(p!(flat::ReadyMessage))),
+            12 => Ok(Self::MessagePacket(p!(flat::MessagePacket))),
+            _ => Err(PacketParseError::InvalidDataType(data_type)),
+        }
     }
 }
 

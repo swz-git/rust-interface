@@ -1,6 +1,8 @@
 #[allow(non_snake_case, unused_imports)]
-pub(crate) mod rlbot_generated;
+#[allow(clippy::all)]
+pub(super) mod rlbot_generated;
 
+use glam::Vec3A;
 // export structs without annoying suffix >:(
 pub use rlbot_generated::rlbot::flat::{
     BallInfoObject as BallInfo, BallPredictionObject as BallPrediction,
@@ -32,7 +34,88 @@ pub use rlbot_generated::rlbot::flat::{
     RotatorObject as Rotator, RotatorPartialObject as RotatorPartial, ScoreInfoObject as ScoreInfo,
     SphereShapeObject as SphereShape, TeamInfoObject as TeamInfo, TinyBallObject as TinyBall,
     TinyPacketObject as TinyPacket, TinyPlayerObject as TinyPlayer, TouchObject as Touch,
+    Vector3Object as Vector3,
 };
+
+#[cfg(feature = "glam")]
+impl Into<glam::Vec3> for Vector3 {
+    fn into(self) -> glam::Vec3 {
+        glam::Vec3 {
+            x: self.x,
+            y: self.y,
+            z: self.z,
+        }
+    }
+}
+
+#[cfg(feature = "glam")]
+impl From<glam::Vec3> for Vector3 {
+    fn from(value: glam::Vec3) -> Self {
+        Self {
+            x: value.x,
+            y: value.y,
+            z: value.z,
+        }
+    }
+}
+
+#[cfg(feature = "glam")]
+impl Into<glam::Vec3A> for Vector3 {
+    fn into(self) -> glam::Vec3A {
+        Vec3A::new(self.x, self.y, self.z)
+    }
+}
+
+#[cfg(feature = "glam")]
+impl From<glam::Vec3A> for Vector3 {
+    fn from(value: glam::Vec3A) -> Self {
+        Self {
+            x: value.x,
+            y: value.y,
+            z: value.z,
+        }
+    }
+}
+
+#[cfg(feature = "glam")]
+impl Into<glam::Vec3> for &Vector3 {
+    fn into(self) -> glam::Vec3 {
+        glam::Vec3 {
+            x: self.x,
+            y: self.y,
+            z: self.z,
+        }
+    }
+}
+
+#[cfg(feature = "glam")]
+impl From<&glam::Vec3> for Vector3 {
+    fn from(value: &glam::Vec3) -> Self {
+        Self {
+            x: value.x,
+            y: value.y,
+            z: value.z,
+        }
+    }
+}
+
+#[cfg(feature = "glam")]
+impl Into<glam::Vec3A> for &Vector3 {
+    fn into(self) -> glam::Vec3A {
+        Vec3A::new(self.x, self.y, self.z)
+    }
+}
+
+#[cfg(feature = "glam")]
+impl From<&glam::Vec3A> for Vector3 {
+    fn from(value: &glam::Vec3A) -> Self {
+        Self {
+            x: value.x,
+            y: value.y,
+            z: value.z,
+        }
+    }
+}
 
 // export enums
 pub use rlbot_generated::rlbot::flat::{
