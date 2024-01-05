@@ -8,7 +8,6 @@ use rlbot_lib::{
 
 const DEFAULT_CAR_ID: usize = 0;
 
-// TODO: get rid of a bunch of unwraps
 fn main() {
     println!("Connecting");
 

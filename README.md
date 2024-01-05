@@ -1,14 +1,10 @@
 # rlbot-rs
 
-## CLI
+A minimal RLBot library for Rust using the socket spec 
 
-### Install
+## Examples
 
-`cargo install --git https://github.com/swz-git/rlbot-match-manager`
-
-### Usage
-
-`rlbot-mr --help`
+see `lib/examples`
 
 ## Flatbuffers
 
