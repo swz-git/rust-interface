@@ -38,12 +38,12 @@ pub use rlbot_generated::rlbot::flat::{
 };
 
 #[cfg(feature = "glam")]
-impl Into<glam::Vec3> for Vector3 {
-    fn into(self) -> glam::Vec3 {
+impl From<Vector3> for glam::Vec3 {
+    fn from(val: Vector3) -> Self {
         glam::Vec3 {
-            x: self.x,
-            y: self.y,
-            z: self.z,
+            x: val.x,
+            y: val.y,
+            z: val.z,
         }
     }
 }
@@ -60,9 +60,9 @@ impl From<glam::Vec3> for Vector3 {
 }
 
 #[cfg(feature = "glam")]
-impl Into<glam::Vec3A> for Vector3 {
-    fn into(self) -> glam::Vec3A {
-        Vec3A::new(self.x, self.y, self.z)
+impl From<Vector3> for glam::Vec3A {
+    fn from(val: Vector3) -> Self {
+        Vec3A::new(val.x, val.y, val.z)
     }
 }
 
@@ -78,12 +78,12 @@ impl From<glam::Vec3A> for Vector3 {
 }
 
 #[cfg(feature = "glam")]
-impl Into<glam::Vec3> for &Vector3 {
-    fn into(self) -> glam::Vec3 {
+impl From<&Vector3> for glam::Vec3 {
+    fn from(val: &Vector3) -> Self {
         glam::Vec3 {
-            x: self.x,
-            y: self.y,
-            z: self.z,
+            x: val.x,
+            y: val.y,
+            z: val.z,
         }
     }
 }
@@ -100,9 +100,9 @@ impl From<&glam::Vec3> for Vector3 {
 }
 
 #[cfg(feature = "glam")]
-impl Into<glam::Vec3A> for &Vector3 {
-    fn into(self) -> glam::Vec3A {
-        Vec3A::new(self.x, self.y, self.z)
+impl From<&Vector3> for glam::Vec3A {
+    fn from(val: &Vector3) -> Self {
+        Vec3A::new(val.x, val.y, val.z)
     }
 }
 

@@ -8,11 +8,11 @@ pub trait Bot {
         game_tick_packet: GameTickPacket,
         connection: &mut RLBotConnection,
     ) -> ControllerState;
-    fn on_field_info(&mut self, field_info: FieldInfo) -> () {}
-    fn on_match_settings(&mut self, match_settings: MatchSettings) -> () {}
-    fn on_quick_chat(&mut self, quick_chat: QuickChat) -> () {}
-    fn on_ball_prediction(&mut self, ball_prediction: BallPrediction) -> () {}
-    fn on_message_packet(&mut self, message_packet: MessagePacket) -> () {}
+    fn on_field_info(&mut self, field_info: FieldInfo) {}
+    fn on_match_settings(&mut self, match_settings: MatchSettings) {}
+    fn on_quick_chat(&mut self, quick_chat: QuickChat) {}
+    fn on_ball_prediction(&mut self, ball_prediction: BallPrediction) {}
+    fn on_message_packet(&mut self, message_packet: MessagePacket) {}
 }
 
 pub fn run_bot<T: Bot>(
