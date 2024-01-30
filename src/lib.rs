@@ -6,13 +6,14 @@ use std::{
 use flatbuffers::{FlatBufferBuilder, InvalidFlatbuffer};
 use thiserror::Error;
 
-pub mod bots;
+pub mod agents;
+
+#[cfg(feature = "glam")]
+pub use glam;
 
 pub(crate) mod flat_wrapper;
 
-pub mod rlbot {
-    pub use crate::flat_wrapper::*;
-}
+pub use crate::flat_wrapper::rlbot;
 
 use rlbot::*;
 
@@ -37,11 +38,13 @@ pub enum RLBotError {
 pub enum Packet {
     GameTickPacket(GameTickPacket),
     FieldInfo(FieldInfo),
+    StartCommand(StartCommand),
     MatchSettings(MatchSettings),
     PlayerInput(PlayerInput),
     DesiredGameState(DesiredGameState),
     RenderGroup(RenderGroup),
-    QuickChat(QuickChat),
+    RemoveRenderGroup(RemoveRenderGroup),
+    // QuickChat(QuickChat),
     BallPrediction(BallPrediction),
     ReadyMessage(ReadyMessage),
     MessagePacket(MessagePacket),
@@ -52,11 +55,13 @@ impl Packet {
         match *self {
             Packet::GameTickPacket(_) => 1,
             Packet::FieldInfo(_) => 2,
-            Packet::MatchSettings(_) => 3,
-            Packet::PlayerInput(_) => 4,
-            Packet::DesiredGameState(_) => 7,
-            Packet::RenderGroup(_) => 8,
-            Packet::QuickChat(_) => 9,
+            Packet::StartCommand(_) => 3,
+            Packet::MatchSettings(_) => 4,
+            Packet::PlayerInput(_) => 5,
+            Packet::DesiredGameState(_) => 6,
+            Packet::RenderGroup(_) => 7,
+            Packet::RemoveRenderGroup(_) => 8,
+            // Packet::QuickChat(_) => 9,
             Packet::BallPrediction(_) => 10,
             Packet::ReadyMessage(_) => 11,
             Packet::MessagePacket(_) => 12,
@@ -77,11 +82,13 @@ impl Packet {
         match self {
             Packet::GameTickPacket(x) => p!(x),
             Packet::FieldInfo(x) => p!(x),
+            Packet::StartCommand(x) => p!(x),
             Packet::MatchSettings(x) => p!(x),
             Packet::PlayerInput(x) => p!(x),
             Packet::DesiredGameState(x) => p!(x),
             Packet::RenderGroup(x) => p!(x),
-            Packet::QuickChat(x) => p!(x),
+            Packet::RemoveRenderGroup(x) => p!(x),
+            // Packet::QuickChat(x) => p!(x),
             Packet::BallPrediction(x) => p!(x),
             Packet::ReadyMessage(x) => p!(x),
             Packet::MessagePacket(x) => p!(x),
@@ -97,16 +104,18 @@ impl Packet {
             }};
         }
 
-        use flat_wrapper::rlbot_generated::rlbot::flat;
+        use flat_wrapper::generated::rlbot::flat;
 
         match data_type {
             1 => Ok(Self::GameTickPacket(p!(flat::GameTickPacket))),
             2 => Ok(Self::FieldInfo(p!(flat::FieldInfo))),
-            3 => Ok(Self::MatchSettings(p!(flat::MatchSettings))),
-            4 => Ok(Self::PlayerInput(p!(flat::PlayerInput))),
-            7 => Ok(Self::DesiredGameState(p!(flat::DesiredGameState))),
-            8 => Ok(Self::RenderGroup(p!(flat::RenderGroup))),
-            9 => Ok(Self::QuickChat(p!(flat::QuickChat))),
+            3 => Ok(Self::StartCommand(p!(flat::StartCommand))),
+            4 => Ok(Self::MatchSettings(p!(flat::MatchSettings))),
+            5 => Ok(Self::PlayerInput(p!(flat::PlayerInput))),
+            6 => Ok(Self::DesiredGameState(p!(flat::DesiredGameState))),
+            7 => Ok(Self::RenderGroup(p!(flat::RenderGroup))),
+            8 => Ok(Self::RemoveRenderGroup(p!(flat::RemoveRenderGroup))),
+            // 9 => Ok(Self::QuickChat(p!(flat::QuickChat))),
             10 => Ok(Self::BallPrediction(p!(flat::BallPrediction))),
             11 => Ok(Self::ReadyMessage(p!(flat::ReadyMessage))),
             12 => Ok(Self::MessagePacket(p!(flat::MessagePacket))),
