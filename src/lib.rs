@@ -130,13 +130,14 @@ pub struct RLBotConnection {
 
 impl RLBotConnection {
     pub fn send_packet(&mut self, packet: Packet) -> Result<(), RLBotError> {
-        let data_type_bin = packet.data_type().to_be_bytes();
+        let data_type_bin = packet.data_type().to_be_bytes().to_vec();
         let payload = packet.build();
-        let data_len_bin = (payload.len() as u16).to_be_bytes();
+        let data_len_bin = (payload.len() as u16).to_be_bytes().to_vec();
 
-        self.stream.write_all(&data_type_bin)?;
-        self.stream.write_all(&data_len_bin)?;
-        self.stream.write_all(&payload)?;
+        // Join so we make sure everything gets written in the right order
+        let joined = [data_type_bin, data_len_bin, payload].concat();
+
+        self.stream.write_all(&joined)?;
         Ok(())
     }
 
