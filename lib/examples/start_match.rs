@@ -1,5 +1,4 @@
 use rlbot_lib::{
-    self,
     rlbot::{
         ExistingMatchBehavior, GameMap, GameMode, MatchLength, MatchSettings, MutatorSettings,
         PlayerClass, PlayerConfiguration, PlayerLoadout, RLBotPlayer,

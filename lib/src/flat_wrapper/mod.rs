@@ -34,7 +34,7 @@ pub use rlbot_generated::rlbot::flat::{
     RotatorObject as Rotator, RotatorPartialObject as RotatorPartial, ScoreInfoObject as ScoreInfo,
     SphereShapeObject as SphereShape, TeamInfoObject as TeamInfo, TinyBallObject as TinyBall,
     TinyPacketObject as TinyPacket, TinyPlayerObject as TinyPlayer, TouchObject as Touch,
-    Vector3Object as Vector3,
+    Vector3Object as Vector3, Vector3PartialObject as Vector3Partial,
 };
 
 #[cfg(feature = "glam")]

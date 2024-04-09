@@ -1,7 +1,6 @@
 use std::env;
 
 use rlbot_lib::{
-    self,
     rlbot::{ControllerState, PlayerInput, ReadyMessage},
     Packet, RLBotConnection,
 };
