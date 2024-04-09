@@ -7,11 +7,11 @@ use rlbot_interface::{
 };
 
 struct AtbaAgent {
-    index: i32,
+    index: u32,
 }
 
 impl Agent for AtbaAgent {
-    fn new(index: i32, _connection: &mut RLBotConnection) -> Self {
+    fn new(index: u32, _connection: &mut RLBotConnection) -> Self {
         Self { index }
     }
     fn tick(

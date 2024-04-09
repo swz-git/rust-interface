@@ -36,6 +36,7 @@ pub enum RLBotError {
 #[allow(dead_code)]
 #[derive(Debug)]
 pub enum Packet {
+    None,
     GameTickPacket(GameTickPacket),
     FieldInfo(FieldInfo),
     StartCommand(StartCommand),
@@ -44,15 +45,17 @@ pub enum Packet {
     DesiredGameState(DesiredGameState),
     RenderGroup(RenderGroup),
     RemoveRenderGroup(RemoveRenderGroup),
-    // QuickChat(QuickChat),
+    MatchComm(MatchComm),
     BallPrediction(BallPrediction),
     ReadyMessage(ReadyMessage),
     MessagePacket(MessagePacket),
+    StopCommand(StopCommand),
 }
 
 impl Packet {
     pub fn data_type(&self) -> u16 {
         match *self {
+            Packet::None => 0,
             Packet::GameTickPacket(_) => 1,
             Packet::FieldInfo(_) => 2,
             Packet::StartCommand(_) => 3,
@@ -61,10 +64,11 @@ impl Packet {
             Packet::DesiredGameState(_) => 6,
             Packet::RenderGroup(_) => 7,
             Packet::RemoveRenderGroup(_) => 8,
-            // Packet::QuickChat(_) => 9,
+            Packet::MatchComm(_) => 9,
             Packet::BallPrediction(_) => 10,
             Packet::ReadyMessage(_) => 11,
             Packet::MessagePacket(_) => 12,
+            Packet::StopCommand(_) => 13,
         }
     }
 
@@ -75,11 +79,14 @@ impl Packet {
         macro_rules! p {
             ($x:ident) => {{
                 let root = $x.pack(&mut builder);
-                builder.finish(root, None)
+                builder.finish(root, None);
+                builder.finished_data().to_owned()
             }};
         }
 
         match self {
+            // 0u16 (be data_type), 1u16 (be data_length), 0u8 (empty payload)
+            Packet::None => [0u8, 0u8, 0u8, 1u8, 0u8].to_vec(),
             Packet::GameTickPacket(x) => p!(x),
             Packet::FieldInfo(x) => p!(x),
             Packet::StartCommand(x) => p!(x),
@@ -88,12 +95,12 @@ impl Packet {
             Packet::DesiredGameState(x) => p!(x),
             Packet::RenderGroup(x) => p!(x),
             Packet::RemoveRenderGroup(x) => p!(x),
-            // Packet::QuickChat(x) => p!(x),
+            Packet::MatchComm(x) => p!(x),
             Packet::BallPrediction(x) => p!(x),
             Packet::ReadyMessage(x) => p!(x),
             Packet::MessagePacket(x) => p!(x),
+            Packet::StopCommand(x) => p!(x),
         }
-        builder.finished_data().to_owned()
     }
 
     pub fn from_payload(data_type: u16, payload: Vec<u8>) -> Result<Self, PacketParseError> {
@@ -107,6 +114,7 @@ impl Packet {
         use flat_wrapper::generated::rlbot::flat;
 
         match data_type {
+            0 => Ok(Self::None),
             1 => Ok(Self::GameTickPacket(p!(flat::GameTickPacket))),
             2 => Ok(Self::FieldInfo(p!(flat::FieldInfo))),
             3 => Ok(Self::StartCommand(p!(flat::StartCommand))),
@@ -115,10 +123,11 @@ impl Packet {
             6 => Ok(Self::DesiredGameState(p!(flat::DesiredGameState))),
             7 => Ok(Self::RenderGroup(p!(flat::RenderGroup))),
             8 => Ok(Self::RemoveRenderGroup(p!(flat::RemoveRenderGroup))),
-            // 9 => Ok(Self::QuickChat(p!(flat::QuickChat))),
+            9 => Ok(Self::MatchComm(p!(flat::MatchComm))),
             10 => Ok(Self::BallPrediction(p!(flat::BallPrediction))),
             11 => Ok(Self::ReadyMessage(p!(flat::ReadyMessage))),
             12 => Ok(Self::MessagePacket(p!(flat::MessagePacket))),
+            13 => Ok(Self::StopCommand(p!(flat::StopCommand))),
             _ => Err(PacketParseError::InvalidDataType(data_type)),
         }
     }
@@ -161,6 +170,7 @@ impl RLBotConnection {
 
     pub fn new(addr: &str) -> Result<RLBotConnection, RLBotError> {
         let stream = TcpStream::connect(addr)?;
+        stream.set_nodelay(true)?;
         Ok(RLBotConnection { stream })
     }
 }

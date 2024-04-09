@@ -14,16 +14,16 @@ fn main() {
 
     println!("Running!");
 
-    let car_index = env::var("RLBOT_INDEX")
+    let car_index: u32 = env::var("RLBOT_INDEX")
         .map(|x| x.parse().unwrap())
         .unwrap_or(0);
 
     rlbot_connection
         .send_packet(Packet::ReadyMessage(ReadyMessage {
             wants_ball_predictions: true,
-            wants_quick_chat: false,
+            wants_comms: true,
             wants_game_messages: true,
-            ..ReadyMessage::default()
+            close_after_match: true,
         }))
         .unwrap();
 
@@ -35,7 +35,7 @@ fn main() {
         let target = game_tick_packet.ball.physics;
         let car = game_tick_packet
             .players
-            .get(car_index)
+            .get(car_index as usize)
             .unwrap()
             .physics
             .clone();
@@ -64,7 +64,7 @@ fn main() {
 
         rlbot_connection
             .send_packet(Packet::PlayerInput(PlayerInput {
-                player_index: car_index as i32,
+                player_index: car_index,
                 controller_state: Box::new(controller),
             }))
             .unwrap();

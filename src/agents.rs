@@ -2,7 +2,7 @@ use crate::{rlbot::*, Packet, RLBotConnection};
 
 #[allow(unused_variables)]
 pub trait Agent {
-    fn new(index: i32, connection: &mut RLBotConnection) -> Self;
+    fn new(index: u32, connection: &mut RLBotConnection) -> Self;
     fn tick(
         &mut self,
         game_tick_packet: GameTickPacket,
@@ -16,15 +16,16 @@ pub trait Agent {
 }
 
 pub fn run_agent<T: Agent>(
-    index: i32,
+    index: u32,
     mut connection: RLBotConnection,
 ) -> Result<(), crate::RLBotError> {
     let mut bot = T::new(index, &mut connection);
 
     connection.send_packet(Packet::ReadyMessage(ReadyMessage {
         wants_ball_predictions: true,
-        wants_quick_chat: true,
+        wants_comms: true,
         wants_game_messages: true,
+        close_after_match: true,
     }))?;
 
     loop {
