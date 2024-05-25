@@ -29,12 +29,12 @@ pub fn run_agent<T: Agent>(
     }))?;
 
     loop {
-        let packet = match connection.recv_packet() {
-            Ok(packet) => packet,
-            Err(e) => Err(e)?,
-        };
+        let packet = connection.recv_packet()?;
 
         match packet {
+            Packet::None => {
+                break;
+            }
             Packet::GameTickPacket(x) => {
                 let controller_state = bot.tick(x, &mut connection);
                 connection.send_packet(Packet::PlayerInput(PlayerInput {
@@ -51,5 +51,5 @@ pub fn run_agent<T: Agent>(
         }
     }
 
-    // Ok(())
+    Ok(())
 }
