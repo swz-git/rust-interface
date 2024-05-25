@@ -10,7 +10,7 @@ pub trait Agent {
     ) -> ControllerState;
     fn on_field_info(&mut self, field_info: FieldInfo) {}
     fn on_match_settings(&mut self, match_settings: MatchSettings) {}
-    // fn on_quick_chat(&mut self, quick_chat: QuickChat) {}
+    fn on_match_comm(&mut self, match_comm: MatchComm) {}
     fn on_ball_prediction(&mut self, ball_prediction: BallPrediction) {}
     fn on_message_packet(&mut self, message_packet: MessagePacket) {}
 }
@@ -44,7 +44,7 @@ pub fn run_agent<T: Agent>(
             }
             Packet::FieldInfo(x) => bot.on_field_info(x),
             Packet::MatchSettings(x) => bot.on_match_settings(x),
-            // Packet::QuickChat(x) => bot.on_quick_chat(x),
+            Packet::MatchComm(x) => bot.on_match_comm(x),
             Packet::BallPrediction(x) => bot.on_ball_prediction(x),
             Packet::MessagePacket(x) => bot.on_message_packet(x),
             _ => { /* The rest of the packets are only client -> server */ }
