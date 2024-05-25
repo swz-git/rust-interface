@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, f32::consts::PI};
 
 use rlbot_interface::{
     agents::{run_agent, Agent},
@@ -32,11 +32,11 @@ impl Agent for AtbaAgent {
 
         let mut bot_front_to_target_angle = bot_to_target_angle - car.rotation.yaw;
 
-        if bot_front_to_target_angle > 3.14 {
-            bot_front_to_target_angle -= 2. * 3.14
+        if bot_front_to_target_angle > PI {
+            bot_front_to_target_angle -= 2. * PI
         };
-        if bot_front_to_target_angle < -3.14 {
-            bot_front_to_target_angle += 2. * 3.14
+        if bot_front_to_target_angle < -PI {
+            bot_front_to_target_angle += 2. * PI
         };
 
         let mut controller = ControllerState::default();

@@ -72,13 +72,12 @@ impl Packet {
         }
     }
 
-    pub fn build(self) -> Vec<u8> {
-        let mut builder = FlatBufferBuilder::new();
-
+    pub fn build(self, builder: &mut FlatBufferBuilder) -> Vec<u8> {
         // TODO: make this mess nicer
         macro_rules! p {
             ($x:ident) => {{
-                let root = $x.pack(&mut builder);
+                builder.reset();
+                let root = $x.pack(builder);
                 builder.finish(root, None);
                 builder.finished_data().to_owned()
             }};
@@ -103,7 +102,7 @@ impl Packet {
         }
     }
 
-    pub fn from_payload(data_type: u16, payload: Vec<u8>) -> Result<Self, PacketParseError> {
+    pub fn from_payload(data_type: u16, payload: &[u8]) -> Result<Self, PacketParseError> {
         // TODO: make this mess nicer
         macro_rules! p {
             ($x:ty) => {{
@@ -133,20 +132,23 @@ impl Packet {
     }
 }
 
-pub struct RLBotConnection {
+pub struct RLBotConnection<'a> {
     stream: TcpStream,
+    builder: FlatBufferBuilder<'a>,
+    buffer: Vec<u8>,
 }
 
-impl RLBotConnection {
+impl<'a> RLBotConnection<'a> {
     pub fn send_packet(&mut self, packet: Packet) -> Result<(), RLBotError> {
         let data_type_bin = packet.data_type().to_be_bytes().to_vec();
-        let payload = packet.build();
+        let payload = packet.build(&mut self.builder);
         let data_len_bin = (payload.len() as u16).to_be_bytes().to_vec();
 
         // Join so we make sure everything gets written in the right order
         let joined = [data_type_bin, data_len_bin, payload].concat();
 
         self.stream.write_all(&joined)?;
+        self.stream.flush()?;
         Ok(())
     }
 
@@ -159,11 +161,10 @@ impl RLBotConnection {
         self.stream.read_exact(&mut buf)?;
         let data_len = u16::from_be_bytes(buf);
 
-        let mut buf = vec![0u8; data_len as usize];
-        self.stream.read_exact(&mut buf)?;
-        let data_payload = buf;
+        self.buffer.resize(data_len as usize, 0);
+        self.stream.read_exact(&mut self.buffer)?;
 
-        let packet = Packet::from_payload(data_type, data_payload)?;
+        let packet = Packet::from_payload(data_type, &self.buffer)?;
 
         Ok(packet)
     }
@@ -171,6 +172,11 @@ impl RLBotConnection {
     pub fn new(addr: &str) -> Result<RLBotConnection, RLBotError> {
         let stream = TcpStream::connect(addr)?;
         stream.set_nodelay(true)?;
-        Ok(RLBotConnection { stream })
+
+        Ok(RLBotConnection {
+            stream,
+            builder: FlatBufferBuilder::with_capacity(1024),
+            buffer: Vec::with_capacity(1024),
+        })
     }
 }

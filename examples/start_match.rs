@@ -1,7 +1,7 @@
 use rlbot_interface::{
     rlbot::{
-        ExistingMatchBehavior, GameMode, Human, LoadoutPaint, MatchLength, MatchSettings,
-        MutatorSettings, PlayerClass, PlayerConfiguration, PlayerLoadout, RLBot,
+        ExistingMatchBehavior, GameMode, Human, MatchLength, MatchSettings, MutatorSettings,
+        PlayerClass, PlayerConfiguration, PlayerLoadout, RLBot,
     },
     Packet, RLBotConnection,
 };
@@ -20,7 +20,7 @@ fn main() {
                 name: "BOT1".to_owned(),
                 team: 0,
                 loadout: Some(Box::new(PlayerLoadout {
-                    loadout_paint: Some(Box::new(LoadoutPaint::default())),
+                    loadout_paint: Some(Box::default()),
                     ..Default::default()
                 })),
                 spawn_id: 0,
