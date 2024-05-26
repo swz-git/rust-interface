@@ -15,6 +15,7 @@ pub trait Agent {
     fn on_message_packet(&mut self, message_packet: MessagePacket) {}
 }
 
+/// Ok(()) means a succesfull exit; bot received a None packet.
 pub fn run_agent<T: Agent>(
     index: u32,
     mut connection: RLBotConnection,
@@ -32,9 +33,7 @@ pub fn run_agent<T: Agent>(
         let packet = connection.recv_packet()?;
 
         match packet {
-            Packet::None => {
-                break;
-            }
+            Packet::None => return Ok(()),
             Packet::GameTickPacket(x) => {
                 let controller_state = bot.tick(x, &mut connection);
                 connection.send_packet(Packet::PlayerInput(PlayerInput {
@@ -51,5 +50,5 @@ pub fn run_agent<T: Agent>(
         }
     }
 
-    Ok(())
+    // Ok(())
 }

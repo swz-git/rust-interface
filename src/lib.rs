@@ -132,13 +132,13 @@ impl Packet {
     }
 }
 
-pub struct RLBotConnection<'a> {
+pub struct RLBotConnection {
     stream: TcpStream,
-    builder: FlatBufferBuilder<'a>,
-    buffer: Vec<u8>,
+    builder: FlatBufferBuilder<'static>,
+    recv_buf: Vec<u8>,
 }
 
-impl<'a> RLBotConnection<'a> {
+impl RLBotConnection {
     pub fn send_packet(&mut self, packet: Packet) -> Result<(), RLBotError> {
         let data_type_bin = packet.data_type().to_be_bytes().to_vec();
         let payload = packet.build(&mut self.builder);
@@ -161,10 +161,10 @@ impl<'a> RLBotConnection<'a> {
         self.stream.read_exact(&mut buf)?;
         let data_len = u16::from_be_bytes(buf);
 
-        self.buffer.resize(data_len as usize, 0);
-        self.stream.read_exact(&mut self.buffer)?;
+        self.recv_buf.resize(data_len as usize, 0);
+        self.stream.read_exact(&mut self.recv_buf)?;
 
-        let packet = Packet::from_payload(data_type, &self.buffer)?;
+        let packet = Packet::from_payload(data_type, &self.recv_buf)?;
 
         Ok(packet)
     }
@@ -176,7 +176,7 @@ impl<'a> RLBotConnection<'a> {
         Ok(RLBotConnection {
             stream,
             builder: FlatBufferBuilder::with_capacity(1024),
-            buffer: Vec::with_capacity(1024),
+            recv_buf: Vec::with_capacity(1024),
         })
     }
 }
