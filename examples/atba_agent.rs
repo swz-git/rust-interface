@@ -19,7 +19,10 @@ impl Agent for AtbaAgent {
         game_tick_packet: rlbot_interface::rlbot::GameTickPacket,
         _connection: &mut RLBotConnection,
     ) -> ControllerState {
-        let target = game_tick_packet.ball.physics;
+        let Some(ball) = game_tick_packet.balls.get(0) else {
+            return ControllerState::default();
+        };
+        let target = &ball.physics;
         let car = game_tick_packet
             .players
             .get(self.index as usize)
@@ -27,8 +30,10 @@ impl Agent for AtbaAgent {
             .physics
             .clone();
 
-        let bot_to_target_angle = (target.location.clone().y - car.location.clone().y)
-            .atan2(target.location.x - car.location.x);
+        let bot_to_target_angle = f32::atan2(
+            target.location.clone().y - car.location.clone().y,
+            target.location.x - car.location.x,
+        );
 
         let mut bot_front_to_target_angle = bot_to_target_angle - car.rotation.yaw;
 

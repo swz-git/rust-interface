@@ -12,7 +12,7 @@ pub trait Agent {
     fn on_match_settings(&mut self, match_settings: MatchSettings) {}
     fn on_match_comm(&mut self, match_comm: MatchComm) {}
     fn on_ball_prediction(&mut self, ball_prediction: BallPrediction) {}
-    fn on_message_packet(&mut self, message_packet: MessagePacket) {}
+    // fn on_message_packet(&mut self, message_packet: MessagePacket) {}
 }
 
 /// Ok(()) means a succesfull exit; bot received a None packet.
@@ -25,7 +25,7 @@ pub fn run_agent<T: Agent>(
     connection.send_packet(Packet::ReadyMessage(ReadyMessage {
         wants_ball_predictions: true,
         wants_comms: true,
-        wants_game_messages: true,
+        // wants_game_messages: true,
         close_after_match: true,
     }))?;
 
@@ -45,7 +45,7 @@ pub fn run_agent<T: Agent>(
             Packet::MatchSettings(x) => bot.on_match_settings(x),
             Packet::MatchComm(x) => bot.on_match_comm(x),
             Packet::BallPrediction(x) => bot.on_ball_prediction(x),
-            Packet::MessagePacket(x) => bot.on_message_packet(x),
+            // Packet::MessagePacket(x) => bot.on_message_packet(x),
             _ => { /* The rest of the packets are only client -> server */ }
         }
     }

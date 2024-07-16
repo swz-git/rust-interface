@@ -48,7 +48,7 @@ pub enum Packet {
     MatchComm(MatchComm),
     BallPrediction(BallPrediction),
     ReadyMessage(ReadyMessage),
-    MessagePacket(MessagePacket),
+    // MessagePacket(MessagePacket),
     StopCommand(StopCommand),
 }
 
@@ -67,7 +67,7 @@ impl Packet {
             Packet::MatchComm(_) => 9,
             Packet::BallPrediction(_) => 10,
             Packet::ReadyMessage(_) => 11,
-            Packet::MessagePacket(_) => 12,
+            // Packet::MessagePacket(_) => 12,
             Packet::StopCommand(_) => 13,
         }
     }
@@ -97,7 +97,7 @@ impl Packet {
             Packet::MatchComm(x) => p!(x),
             Packet::BallPrediction(x) => p!(x),
             Packet::ReadyMessage(x) => p!(x),
-            Packet::MessagePacket(x) => p!(x),
+            // Packet::MessagePacket(x) => p!(x),
             Packet::StopCommand(x) => p!(x),
         }
     }
@@ -125,7 +125,7 @@ impl Packet {
             9 => Ok(Self::MatchComm(p!(flat::MatchComm))),
             10 => Ok(Self::BallPrediction(p!(flat::BallPrediction))),
             11 => Ok(Self::ReadyMessage(p!(flat::ReadyMessage))),
-            12 => Ok(Self::MessagePacket(p!(flat::MessagePacket))),
+            // 12 => Ok(Self::MessagePacket(p!(flat::MessagePacket))),
             13 => Ok(Self::StopCommand(p!(flat::StopCommand))),
             _ => Err(PacketParseError::InvalidDataType(data_type)),
         }

@@ -65,6 +65,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         Err("Couldn't find flatbuffers schema folder")?;
     }
 
+    fs::remove_dir_all(OUT_FOLDER)?;
+
     Command::new(format!("{SCHEMA_FOLDER}/{FLATC_BINARY}"))
         .args([
             "--rust",

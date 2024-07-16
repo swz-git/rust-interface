@@ -22,7 +22,6 @@ fn main() {
         .send_packet(Packet::ReadyMessage(ReadyMessage {
             wants_ball_predictions: true,
             wants_comms: true,
-            wants_game_messages: true,
             close_after_match: true,
         }))
         .unwrap();
@@ -32,7 +31,10 @@ fn main() {
         else {
             continue;
         };
-        let target = game_tick_packet.ball.physics;
+        let Some(ball) = game_tick_packet.balls.get(0) else {
+            continue;
+        };
+        let target = &ball.physics;
         let car = game_tick_packet
             .players
             .get(car_index as usize)
@@ -40,8 +42,10 @@ fn main() {
             .physics
             .clone();
 
-        let bot_to_target_angle = (target.location.clone().y - car.location.clone().y)
-            .atan2(target.location.x - car.location.x);
+        let bot_to_target_angle = f32::atan2(
+            target.location.clone().y - car.location.clone().y,
+            target.location.x - car.location.x,
+        );
 
         let mut bot_front_to_target_angle = bot_to_target_angle - car.rotation.yaw;
 
