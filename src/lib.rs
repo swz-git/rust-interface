@@ -34,7 +34,7 @@ pub enum RLBotError {
 }
 
 #[allow(dead_code)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Packet {
     None,
     GameTickPacket(GameTickPacket),

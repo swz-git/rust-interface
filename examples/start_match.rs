@@ -23,7 +23,7 @@ fn main() {
                     loadout_paint: Some(Box::default()),
                     ..Default::default()
                 })),
-                spawn_id: 0,
+                spawn_id: 1,
                 ..Default::default()
             },
             PlayerConfiguration {
@@ -31,7 +31,7 @@ fn main() {
                 name: "".to_owned(),
                 team: 1,
                 loadout: None,
-                spawn_id: 1,
+                spawn_id: 2,
                 ..Default::default()
             },
         ],

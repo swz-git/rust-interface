@@ -1,25 +1,80 @@
-use crate::{rlbot::*, Packet, RLBotConnection};
+use std::{io::Write, thread};
+
+use crate::{rlbot::*, Packet, RLBotConnection, RLBotError};
 
 #[allow(unused_variables)]
 pub trait Agent {
-    fn new(index: u32, connection: &mut RLBotConnection) -> Self;
-    fn tick(
-        &mut self,
-        game_tick_packet: GameTickPacket,
-        connection: &mut RLBotConnection,
-    ) -> ControllerState;
-    fn on_field_info(&mut self, field_info: FieldInfo) {}
-    fn on_match_settings(&mut self, match_settings: MatchSettings) {}
-    fn on_match_comm(&mut self, match_comm: MatchComm) {}
-    fn on_ball_prediction(&mut self, ball_prediction: BallPrediction) {}
+    fn new(spawn_id: i32) -> Self;
+    fn tick(&mut self, game_tick_packet: GameTickPacket) -> Vec<Packet>;
+    fn on_field_info(&mut self, field_info: FieldInfo) -> Vec<Packet> {
+        vec![]
+    }
+    fn on_match_settings(&mut self, match_settings: MatchSettings) -> Vec<Packet> {
+        vec![]
+    }
+    fn on_match_comm(&mut self, match_comm: MatchComm) -> Vec<Packet> {
+        vec![]
+    }
+    fn on_ball_prediction(&mut self, ball_prediction: BallPrediction) -> Vec<Packet> {
+        vec![]
+    }
 }
 
-/// Ok(()) means a succesfull exit; bot received a None packet.
-pub fn run_agent<T: Agent>(
-    index: u32,
+#[derive(thiserror::Error, Debug)]
+pub enum AgentError {
+    #[error("Agent paniced")]
+    AgentPanic,
+    #[error("RLBot failed")]
+    PacketParseError(#[from] crate::RLBotError),
+}
+
+/// Run multiple agents on one thread each. They share a connection.
+/// Ok(()) means a succesfull exit; one of the bots received a None packet.
+pub fn run_agents<T: Agent>(
+    spawn_ids: &[i32],
     mut connection: RLBotConnection,
-) -> Result<(), crate::RLBotError> {
-    let mut bot = T::new(index, &mut connection);
+) -> Result<(), AgentError> {
+    let mut threads = vec![];
+
+    let (thread_send, main_recv) = crossbeam_channel::unbounded();
+    for (i, spawn_id) in spawn_ids.iter().enumerate() {
+        let (main_send, thread_recv) = crossbeam_channel::unbounded::<Packet>();
+        let thread_send = thread_send.clone();
+        let spawn_id = *spawn_id;
+
+        threads.push((
+            main_send,
+            thread::Builder::new()
+                .name(format!("Agent thread {i} ({spawn_id})"))
+                .spawn(move || {
+                    let mut bot = T::new(spawn_id);
+                    while let Ok(packet) = thread_recv.recv() {
+                        match packet {
+                            Packet::None => break,
+                            Packet::GameTickPacket(x) => {
+                                thread_send.send(bot.tick(x)).unwrap();
+                            }
+                            Packet::FieldInfo(x) => thread_send.send(bot.on_field_info(x)).unwrap(),
+                            Packet::MatchSettings(x) => {
+                                thread_send.send(bot.on_match_settings(x)).unwrap()
+                            }
+                            Packet::MatchComm(x) => thread_send.send(bot.on_match_comm(x)).unwrap(),
+                            Packet::BallPrediction(x) => {
+                                thread_send.send(bot.on_ball_prediction(x)).unwrap()
+                            }
+                            _ => { /* The rest of the packets are only client -> server */ }
+                        }
+                    }
+                    drop(thread_send);
+                    drop(thread_recv);
+                })
+                .unwrap(),
+        ));
+    }
+    // drop never-again-used copy of thread_send
+    // NO NOT REMOVE, otherwise main_recv.recv() will never error
+    // which we rely on for clean exiting
+    drop(thread_send);
 
     connection.send_packet(Packet::ReadyMessage(ReadyMessage {
         wants_ball_predictions: true,
@@ -28,25 +83,47 @@ pub fn run_agent<T: Agent>(
         close_after_match: true,
     }))?;
 
-    loop {
+    let mut to_send: Vec<Packet> = Vec::with_capacity(spawn_ids.len());
+    'main_loop: loop {
         let packet = connection.recv_packet()?;
 
-        match packet {
-            Packet::None => return Ok(()),
-            Packet::GameTickPacket(x) => {
-                let controller_state = bot.tick(x, &mut connection);
-                connection.send_packet(Packet::PlayerInput(PlayerInput {
-                    player_index: index,
-                    controller_state: Box::new(controller_state),
-                }))?;
-            }
-            Packet::FieldInfo(x) => bot.on_field_info(x),
-            Packet::MatchSettings(x) => bot.on_match_settings(x),
-            Packet::MatchComm(x) => bot.on_match_comm(x),
-            Packet::BallPrediction(x) => bot.on_ball_prediction(x),
-            _ => { /* The rest of the packets are only client -> server */ }
+        for (sender, _) in threads.iter() {
+            let Ok(_) = sender.send(packet.clone()) else {
+                return Err(AgentError::AgentPanic);
+            };
         }
+
+        for (_sender, _) in threads.iter() {
+            let Ok(list) = main_recv.recv() else {
+                break 'main_loop;
+            };
+            to_send.extend(list.into_iter())
+        }
+
+        let to_write = to_send
+            .drain(..)
+            // convert Packet to Vec<u8> that rlbot can understand
+            .map(|x| {
+                let data_type_bin = x.data_type().to_be_bytes().to_vec();
+                let payload = x.build(&mut connection.builder);
+                let data_len_bin = (payload.len() as u16).to_be_bytes().to_vec();
+
+                // Join so we make sure everything gets written in the right order
+                [data_type_bin, data_len_bin, payload].concat()
+            })
+            .collect::<Vec<_>>()
+            // Join all raw packets together
+            .concat();
+
+        connection
+            .stream
+            .write_all(&to_write)
+            .map_err(|x| RLBotError::from(x))?
     }
 
-    // Ok(())
+    for (_, thread_handle) in threads.into_iter() {
+        thread_handle.join().unwrap()
+    }
+
+    Ok(())
 }

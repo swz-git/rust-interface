@@ -1,31 +1,38 @@
 use std::{env, f32::consts::PI};
 
 use rlbot_interface::{
-    agents::{run_agent, Agent},
-    rlbot::ControllerState,
-    RLBotConnection,
+    agents::{run_agents, Agent},
+    rlbot::{ControllerState, PlayerInput},
+    Packet, RLBotConnection,
 };
 
 struct AtbaAgent {
-    index: u32,
+    spawn_id: i32,
 }
 
 impl Agent for AtbaAgent {
-    fn new(index: u32, _connection: &mut RLBotConnection) -> Self {
-        Self { index }
+    fn new(spawn_id: i32) -> Self {
+        Self { spawn_id }
     }
-    fn tick(
-        &mut self,
-        game_tick_packet: rlbot_interface::rlbot::GameTickPacket,
-        _connection: &mut RLBotConnection,
-    ) -> ControllerState {
-        let Some(ball) = game_tick_packet.balls.get(0) else {
-            return ControllerState::default();
+    fn tick(&mut self, game_tick_packet: rlbot_interface::rlbot::GameTickPacket) -> Vec<Packet> {
+        let Some(bot_index) = game_tick_packet
+            .players
+            .iter()
+            .position(|x| x.spawn_id == self.spawn_id)
+        else {
+            // If we aren't in the game, don't do anything
+            return vec![];
         };
+
+        let Some(ball) = game_tick_packet.balls.get(0) else {
+            // If theres no ball, theres nothing to chase, don't do anything
+            return vec![];
+        };
+
         let target = &ball.physics;
         let car = game_tick_packet
             .players
-            .get(self.index as usize)
+            .get(bot_index)
             .unwrap()
             .physics
             .clone();
@@ -54,7 +61,10 @@ impl Agent for AtbaAgent {
 
         controller.throttle = 1.;
 
-        controller
+        vec![Packet::PlayerInput(PlayerInput {
+            player_index: bot_index as u32,
+            controller_state: Box::new(controller),
+        })]
     }
 }
 fn main() {
@@ -66,9 +76,22 @@ fn main() {
 
     println!("Running!");
 
-    let index = env::var("RLBOT_INDEX")
-        .map(|x| x.parse().unwrap())
-        .unwrap_or(0);
+    // Parse the environemt variable `RLBOT_SPAWN_IDS` into a list of spawn_ids.
+    // ex. "10,20,30" -> vec![10,20,30]
+    //
+    // The hivemind field in your bot.toml file decides if rlbot core is going to
+    // start your bot as one or multiple instances of your binary/exe.
+    // If the hivemind field is set to true, one instance of your bot will handle
+    // all of the bots in a team.
+    //
+    // TODO: Add hivemind agent and example code
+    let spawn_ids = env::var("RLBOT_SPAWN_IDS")
+        .map(|x| {
+            x.split(',')
+                .map(|x| x.parse::<i32>().expect("int in RLBOT_SPAWN_IDS"))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or(vec![]);
 
-    run_agent::<AtbaAgent>(index, rlbot_connection).expect("to run agent");
+    run_agents::<AtbaAgent>(&spawn_ids, rlbot_connection).expect("to run agent");
 }

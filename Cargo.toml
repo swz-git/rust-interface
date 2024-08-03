@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+crossbeam-channel = "0.5.13"
 flatbuffers = "24.3.25"
 glam = { version = "0.27.0", optional = true }
 thiserror = "1.0.50"

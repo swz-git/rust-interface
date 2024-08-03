@@ -6,6 +6,20 @@ use rlbot_interface::{
 };
 
 fn main() {
+    let spawn_ids = env::var("RLBOT_SPAWN_IDS")
+        .map(|x| {
+            x.split(',')
+                .map(|x| x.parse::<i32>().expect("int in RLBOT_SPAWN_IDS"))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or(vec![]);
+
+    if spawn_ids.len() != 1 {
+        panic!("The raw atba example code does not support hiveminds, please only pass one spawn_id or disable the hivemind field in bot.toml")
+    }
+
+    let spawn_id = spawn_ids[0];
+
     println!("Connecting");
 
     let rlbot_addr = env::var("RLBOT_CORE_ADDR").unwrap_or("127.0.0.1:23234".to_owned());
@@ -13,10 +27,6 @@ fn main() {
     let mut rlbot_connection = RLBotConnection::new(&rlbot_addr).expect("connection");
 
     println!("Running!");
-
-    let car_index: u32 = env::var("RLBOT_INDEX")
-        .map(|x| x.parse().unwrap())
-        .unwrap_or(0);
 
     rlbot_connection
         .send_packet(Packet::ReadyMessage(ReadyMessage {
@@ -31,13 +41,23 @@ fn main() {
         else {
             continue;
         };
+
+        let Some(bot_index) = game_tick_packet
+            .players
+            .iter()
+            .position(|x| x.spawn_id == spawn_id)
+        else {
+            // If we aren't in the game, don't do anything
+            continue;
+        };
+
         let Some(ball) = game_tick_packet.balls.get(0) else {
             continue;
         };
         let target = &ball.physics;
         let car = game_tick_packet
             .players
-            .get(car_index as usize)
+            .get(bot_index as usize)
             .unwrap()
             .physics
             .clone();
@@ -68,7 +88,7 @@ fn main() {
 
         rlbot_connection
             .send_packet(Packet::PlayerInput(PlayerInput {
-                player_index: car_index,
+                player_index: bot_index as u32,
                 controller_state: Box::new(controller),
             }))
             .unwrap();
