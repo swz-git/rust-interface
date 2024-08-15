@@ -48,6 +48,7 @@ pub fn run_agents<T: Agent>(
                 .name(format!("Agent thread {i} ({spawn_id})"))
                 .spawn(move || {
                     let mut bot = T::new(spawn_id);
+
                     while let Ok(packet) = thread_recv.recv() {
                         match packet {
                             Packet::None => break,
@@ -76,13 +77,24 @@ pub fn run_agents<T: Agent>(
     // which we rely on for clean exiting
     drop(thread_send);
 
-    connection.send_packet(Packet::ReadyMessage(ReadyMessage {
+    connection.send_packet(Packet::ConnectionSettings(ConnectionSettings {
         wants_ball_predictions: true,
         wants_comms: true,
         // wants_game_messages: true,
         close_after_match: true,
     }))?;
 
+    // We only need to send one init complete with the first
+    // spawn id even though we may be running multiple bots.
+    let Some(first_spawn_id) = spawn_ids.first() else {
+        // run no bots? no problem, done
+        return Ok(());
+    };
+    connection.send_packet(Packet::InitComplete(InitComplete {
+        spawn_id: *first_spawn_id,
+    }))?;
+
+    // Main loop, broadcast packet to all of the bots, then wait for all of the responses
     let mut to_send: Vec<Packet> = Vec::with_capacity(spawn_ids.len());
     'main_loop: loop {
         let packet = connection.recv_packet()?;
@@ -100,30 +112,41 @@ pub fn run_agents<T: Agent>(
             to_send.extend(list.into_iter())
         }
 
-        let to_write = to_send
-            .drain(..)
-            // convert Packet to Vec<u8> that rlbot can understand
-            .map(|x| {
-                let data_type_bin = x.data_type().to_be_bytes().to_vec();
-                let payload = x.build(&mut connection.builder);
-                let data_len_bin = (payload.len() as u16).to_be_bytes().to_vec();
-
-                // Join so we make sure everything gets written in the right order
-                [data_type_bin, data_len_bin, payload].concat()
-            })
-            .collect::<Vec<_>>()
-            // Join all raw packets together
-            .concat();
-
-        connection
-            .stream
-            .write_all(&to_write)
-            .map_err(|x| RLBotError::from(x))?
+        if to_send.len() == 0 {
+            continue; // no need to send nothing
+        }
+        write_multiple_packets(&mut connection, to_send.drain(..).collect())?;
     }
 
     for (_, thread_handle) in threads.into_iter() {
         thread_handle.join().unwrap()
     }
+
+    Ok(())
+}
+
+fn write_multiple_packets(
+    connection: &mut RLBotConnection,
+    packets: Vec<Packet>,
+) -> Result<(), RLBotError> {
+    let to_write = packets
+        .into_iter()
+        // convert Packet to Vec<u8> that rlbot can understand
+        .map(|x| {
+            let data_type_bin = x.data_type().to_be_bytes().to_vec();
+            let payload = x.build(&mut connection.builder);
+            let data_len_bin = (payload.len() as u16).to_be_bytes().to_vec();
+
+            [data_type_bin, data_len_bin, payload].concat()
+        })
+        .collect::<Vec<_>>()
+        // Join all raw packets together
+        .concat();
+
+    connection
+        .stream
+        .write_all(&to_write)
+        .map_err(|x| RLBotError::from(x))?;
 
     Ok(())
 }

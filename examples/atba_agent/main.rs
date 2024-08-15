@@ -15,18 +15,20 @@ impl Agent for AtbaAgent {
         Self { spawn_id }
     }
     fn tick(&mut self, game_tick_packet: rlbot_interface::rlbot::GameTickPacket) -> Vec<Packet> {
+        let mut packets_to_send = vec![];
+
         let Some(bot_index) = game_tick_packet
             .players
             .iter()
             .position(|x| x.spawn_id == self.spawn_id)
         else {
             // If we aren't in the game, don't do anything
-            return vec![];
+            return packets_to_send;
         };
 
         let Some(ball) = game_tick_packet.balls.get(0) else {
             // If theres no ball, theres nothing to chase, don't do anything
-            return vec![];
+            return packets_to_send;
         };
 
         let target = &ball.physics;
@@ -61,10 +63,11 @@ impl Agent for AtbaAgent {
 
         controller.throttle = 1.;
 
-        vec![Packet::PlayerInput(PlayerInput {
+        packets_to_send.push(Packet::PlayerInput(PlayerInput {
             player_index: bot_index as u32,
             controller_state: Box::new(controller),
-        })]
+        }));
+        packets_to_send
     }
 }
 fn main() {
@@ -93,5 +96,8 @@ fn main() {
         })
         .unwrap_or(vec![]);
 
+    // Blocking
     run_agents::<AtbaAgent>(&spawn_ids, rlbot_connection).expect("to run agent");
+
+    println!("Spawn ids {spawn_ids:?} exited nicely")
 }

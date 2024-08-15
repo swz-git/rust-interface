@@ -47,8 +47,10 @@ pub enum Packet {
     RemoveRenderGroup(RemoveRenderGroup),
     MatchComm(MatchComm),
     BallPrediction(BallPrediction),
-    ReadyMessage(ReadyMessage),
+    ConnectionSettings(ConnectionSettings),
     StopCommand(StopCommand),
+    SetLoadout(SetLoadout),
+    InitComplete(InitComplete),
 }
 
 impl Packet {
@@ -65,8 +67,10 @@ impl Packet {
             Packet::RemoveRenderGroup(_) => 8,
             Packet::MatchComm(_) => 9,
             Packet::BallPrediction(_) => 10,
-            Packet::ReadyMessage(_) => 11,
+            Packet::ConnectionSettings(_) => 11,
             Packet::StopCommand(_) => 12,
+            Packet::SetLoadout(_) => 13,
+            Packet::InitComplete(_) => 14,
         }
     }
 
@@ -94,8 +98,10 @@ impl Packet {
             Packet::RemoveRenderGroup(x) => p!(x),
             Packet::MatchComm(x) => p!(x),
             Packet::BallPrediction(x) => p!(x),
-            Packet::ReadyMessage(x) => p!(x),
+            Packet::ConnectionSettings(x) => p!(x),
             Packet::StopCommand(x) => p!(x),
+            Packet::SetLoadout(x) => p!(x),
+            Packet::InitComplete(x) => p!(x),
         }
     }
 
@@ -121,8 +127,10 @@ impl Packet {
             8 => Ok(Self::RemoveRenderGroup(p!(flat::RemoveRenderGroup))),
             9 => Ok(Self::MatchComm(p!(flat::MatchComm))),
             10 => Ok(Self::BallPrediction(p!(flat::BallPrediction))),
-            11 => Ok(Self::ReadyMessage(p!(flat::ReadyMessage))),
+            11 => Ok(Self::ConnectionSettings(p!(flat::ConnectionSettings))),
             12 => Ok(Self::StopCommand(p!(flat::StopCommand))),
+            13 => Ok(Self::SetLoadout(p!(flat::SetLoadout))),
+            14 => Ok(Self::InitComplete(p!(flat::InitComplete))),
             _ => Err(PacketParseError::InvalidDataType(data_type)),
         }
     }

@@ -1,7 +1,7 @@
 use std::{env, f32::consts::PI};
 
 use rlbot_interface::{
-    rlbot::{ControllerState, PlayerInput, ReadyMessage},
+    rlbot::{ConnectionSettings, ControllerState, InitComplete, PlayerInput},
     Packet, RLBotConnection,
 };
 
@@ -29,11 +29,15 @@ fn main() {
     println!("Running!");
 
     rlbot_connection
-        .send_packet(Packet::ReadyMessage(ReadyMessage {
+        .send_packet(Packet::ConnectionSettings(ConnectionSettings {
             wants_ball_predictions: true,
             wants_comms: true,
             close_after_match: true,
         }))
+        .unwrap();
+
+    rlbot_connection
+        .send_packet(Packet::InitComplete(InitComplete { spawn_id }))
         .unwrap();
 
     loop {
