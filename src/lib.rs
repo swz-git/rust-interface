@@ -4,6 +4,7 @@ use std::{
 };
 
 use flatbuffers::{FlatBufferBuilder, InvalidFlatbuffer};
+use planus::ReadAsRoot;
 use thiserror::Error;
 
 pub mod agents;
@@ -22,7 +23,9 @@ pub enum PacketParseError {
     #[error("Invalid data type: {0}")]
     InvalidDataType(u16),
     #[error("Unpacking flatbuffer failed")]
-    InvalidFlatbuffer(#[from] InvalidFlatbuffer),
+    InvalidFlatbuffer(#[from] planus::Error),
+    // #[error("Unpacking flatbuffer failed")]
+    // InvalidFlatbuffer(#[from] InvalidFlatbuffer),
 }
 
 #[derive(Error, Debug)]
@@ -74,14 +77,12 @@ impl Packet {
         }
     }
 
-    pub fn build(self, builder: &mut FlatBufferBuilder) -> Vec<u8> {
+    pub fn build(self, builder: &mut planus::Builder) -> Vec<u8> {
         // TODO: make this mess nicer
         macro_rules! p {
             ($x:ident) => {{
-                builder.reset();
-                let root = $x.pack(builder);
-                builder.finish(root, None);
-                builder.finished_data().to_owned()
+                builder.clear();
+                builder.finish($x, None).to_vec()
             }};
         }
 
@@ -106,31 +107,29 @@ impl Packet {
     }
 
     pub fn from_payload(data_type: u16, payload: &[u8]) -> Result<Self, PacketParseError> {
-        // TODO: make this mess nicer
+        // // TODO: make this mess nicer
         macro_rules! p {
-            ($x:ty) => {{
-                flatbuffers::root::<$x>(&payload)?.unpack()
+            ($x:ident) => {{
+                $x::read_as_root(payload)?.try_into().unwrap()
             }};
         }
 
-        use flat_wrapper::generated::rlbot::flat;
-
         match data_type {
             0 => Ok(Self::None),
-            1 => Ok(Self::GameTickPacket(p!(flat::GameTickPacket))),
-            2 => Ok(Self::FieldInfo(p!(flat::FieldInfo))),
-            3 => Ok(Self::StartCommand(p!(flat::StartCommand))),
-            4 => Ok(Self::MatchSettings(p!(flat::MatchSettings))),
-            5 => Ok(Self::PlayerInput(p!(flat::PlayerInput))),
-            6 => Ok(Self::DesiredGameState(p!(flat::DesiredGameState))),
-            7 => Ok(Self::RenderGroup(p!(flat::RenderGroup))),
-            8 => Ok(Self::RemoveRenderGroup(p!(flat::RemoveRenderGroup))),
-            9 => Ok(Self::MatchComm(p!(flat::MatchComm))),
-            10 => Ok(Self::BallPrediction(p!(flat::BallPrediction))),
-            11 => Ok(Self::ConnectionSettings(p!(flat::ConnectionSettings))),
-            12 => Ok(Self::StopCommand(p!(flat::StopCommand))),
-            13 => Ok(Self::SetLoadout(p!(flat::SetLoadout))),
-            14 => Ok(Self::InitComplete(p!(flat::InitComplete))),
+            1 => Ok(Self::GameTickPacket(p!(GameTickPacketRef))),
+            2 => Ok(Self::FieldInfo(p!(FieldInfoRef))),
+            3 => Ok(Self::StartCommand(p!(StartCommandRef))),
+            4 => Ok(Self::MatchSettings(p!(MatchSettingsRef))),
+            5 => Ok(Self::PlayerInput(p!(PlayerInputRef))),
+            6 => Ok(Self::DesiredGameState(p!(DesiredGameStateRef))),
+            7 => Ok(Self::RenderGroup(p!(RenderGroupRef))),
+            8 => Ok(Self::RemoveRenderGroup(p!(RemoveRenderGroupRef))),
+            9 => Ok(Self::MatchComm(p!(MatchCommRef))),
+            10 => Ok(Self::BallPrediction(p!(BallPredictionRef))),
+            11 => Ok(Self::ConnectionSettings(p!(ConnectionSettingsRef))),
+            12 => Ok(Self::StopCommand(p!(StopCommandRef))),
+            13 => Ok(Self::SetLoadout(p!(SetLoadoutRef))),
+            14 => Ok(Self::InitComplete(p!(InitCompleteRef))),
             _ => Err(PacketParseError::InvalidDataType(data_type)),
         }
     }
@@ -138,7 +137,7 @@ impl Packet {
 
 pub struct RLBotConnection {
     stream: TcpStream,
-    builder: FlatBufferBuilder<'static>,
+    builder: planus::Builder,
     recv_buf: Vec<u8>,
 }
 
@@ -179,7 +178,7 @@ impl RLBotConnection {
 
         Ok(RLBotConnection {
             stream,
-            builder: FlatBufferBuilder::with_capacity(1024),
+            builder: planus::Builder::with_capacity(1024),
             recv_buf: Vec::with_capacity(1024),
         })
     }

@@ -1,20 +1,34 @@
+// #[allow(non_snake_case, unused, clippy::all)]
+// pub(crate) mod generated;
+
+#[path = "rlbot.rs"]
 #[allow(non_snake_case, unused, clippy::all)]
-pub(crate) mod generated;
+pub(crate) mod rlbot_flat;
+pub use rlbot_flat::rlbot::flat as rlbot;
 
-mod renamed_objects;
+impl Default for rlbot::GameTickPacket {
+    fn default() -> Self {
+        todo!()
+    }
+}
 
-pub mod rlbot {
-    pub use super::renamed_objects::*;
+// mod renamed_objects;
+
+// pub mod rlbot {
+//     pub use super::renamed_objects::*;
+// }
+
+#[cfg(feature = "glam")]
+impl Into<glam::Vec3> for rlbot::Vector3 {
+    fn into(self) -> glam::Vec3 {
+        glam::Vec3::new(self.x, self.y, self.z)
+    }
 }
 
 #[cfg(feature = "glam")]
-impl From<rlbot::Vector3> for glam::Vec3 {
-    fn from(val: rlbot::Vector3) -> Self {
-        glam::Vec3 {
-            x: val.x,
-            y: val.y,
-            z: val.z,
-        }
+impl Into<glam::Vec3A> for rlbot::Vector3 {
+    fn into(self) -> glam::Vec3A {
+        glam::Vec3A::new(self.x, self.y, self.z)
     }
 }
 
@@ -30,55 +44,8 @@ impl From<glam::Vec3> for rlbot::Vector3 {
 }
 
 #[cfg(feature = "glam")]
-impl From<rlbot::Vector3> for glam::Vec3A {
-    fn from(val: rlbot::Vector3) -> Self {
-        glam::Vec3A::new(val.x, val.y, val.z)
-    }
-}
-
-#[cfg(feature = "glam")]
 impl From<glam::Vec3A> for rlbot::Vector3 {
     fn from(value: glam::Vec3A) -> Self {
-        Self {
-            x: value.x,
-            y: value.y,
-            z: value.z,
-        }
-    }
-}
-
-#[cfg(feature = "glam")]
-impl From<&rlbot::Vector3> for glam::Vec3 {
-    fn from(val: &rlbot::Vector3) -> Self {
-        glam::Vec3 {
-            x: val.x,
-            y: val.y,
-            z: val.z,
-        }
-    }
-}
-
-#[cfg(feature = "glam")]
-impl From<&glam::Vec3> for rlbot::Vector3 {
-    fn from(value: &glam::Vec3) -> Self {
-        Self {
-            x: value.x,
-            y: value.y,
-            z: value.z,
-        }
-    }
-}
-
-#[cfg(feature = "glam")]
-impl From<&rlbot::Vector3> for glam::Vec3A {
-    fn from(val: &rlbot::Vector3) -> Self {
-        glam::Vec3A::new(val.x, val.y, val.z)
-    }
-}
-
-#[cfg(feature = "glam")]
-impl From<&glam::Vec3A> for rlbot::Vector3 {
-    fn from(value: &glam::Vec3A) -> Self {
         Self {
             x: value.x,
             y: value.y,
