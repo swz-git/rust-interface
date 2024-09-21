@@ -7,15 +7,15 @@ edition = "2021"
 
 [dependencies]
 crossbeam-channel = "0.5.13"
-flatbuffers = { version = "24.3.25", features = ["serialize"] }
 glam = { version = "0.27.0", optional = true }
-planus = "0.4.0"
 serde = { version = "1.0.210", features = ["derive"] }
 thiserror = "1.0.50"
+planus = "0.4.0"
 
 [features]
 default = ["glam"]
 glam = ["dep:glam"]
 
 [build-dependencies]
-regex = "1.10.3"
+planus-translation = "0.4.0"
+planus-codegen = "0.4.0"

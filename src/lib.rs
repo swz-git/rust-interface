@@ -3,7 +3,6 @@ use std::{
     net::TcpStream,
 };
 
-use flatbuffers::{FlatBufferBuilder, InvalidFlatbuffer};
 use planus::ReadAsRoot;
 use thiserror::Error;
 

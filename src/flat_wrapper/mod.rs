@@ -1,34 +1,18 @@
-// #[allow(non_snake_case, unused, clippy::all)]
-// pub(crate) mod generated;
-
-#[path = "rlbot.rs"]
-#[allow(non_snake_case, unused, clippy::all)]
-pub(crate) mod rlbot_flat;
-pub use rlbot_flat::rlbot::flat as rlbot;
-
-impl Default for rlbot::GameTickPacket {
-    fn default() -> Self {
-        todo!()
-    }
-}
-
-// mod renamed_objects;
-
-// pub mod rlbot {
-//     pub use super::renamed_objects::*;
-// }
+#[allow(clippy::all, dead_code)]
+pub(crate) mod planus_flat;
+pub use planus_flat::rlbot::flat as rlbot;
 
 #[cfg(feature = "glam")]
-impl Into<glam::Vec3> for rlbot::Vector3 {
-    fn into(self) -> glam::Vec3 {
-        glam::Vec3::new(self.x, self.y, self.z)
+impl From<rlbot::Vector3> for glam::Vec3 {
+    fn from(value: rlbot::Vector3) -> Self {
+        Self::new(value.x, value.y, value.z)
     }
 }
 
 #[cfg(feature = "glam")]
-impl Into<glam::Vec3A> for rlbot::Vector3 {
-    fn into(self) -> glam::Vec3A {
-        glam::Vec3A::new(self.x, self.y, self.z)
+impl From<rlbot::Vector3> for glam::Vec3A {
+    fn from(value: rlbot::Vector3) -> Self {
+        Self::new(value.x, value.y, value.z)
     }
 }
 

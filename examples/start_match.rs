@@ -24,7 +24,9 @@ fn main() {
                     ..Default::default()
                 })),
                 spawn_id: 1,
-                ..Default::default()
+                location: Default::default(),
+                run_command: Default::default(),
+                hivemind: Default::default(),
             },
             PlayerConfiguration {
                 variety: PlayerClass::Human(Box::new(Human {})),
@@ -32,11 +34,13 @@ fn main() {
                 team: 1,
                 loadout: None,
                 spawn_id: 2,
-                ..Default::default()
+                location: Default::default(),
+                run_command: Default::default(),
+                hivemind: Default::default(),
             },
         ],
         game_mode: GameMode::Soccer,
-        game_map_upk: "UtopiaStadium_P".to_owned(),
+        game_map_upk: "UtopiaStadium_P".into(),
         // mutatorSettings CANNOT be None, otherwise RLBot will crash (this is true for v4, maybe not v5)
         mutator_settings: Some(Box::new(MutatorSettings {
             match_length: MatchLength::Unlimited,
