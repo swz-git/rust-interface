@@ -40,7 +40,7 @@ fn main() {
             },
         ],
         game_mode: GameMode::Soccer,
-        game_map_upk: Some("UtopiaStadium_P".into()),
+        game_map_upk: "UtopiaStadium_P".into(),
         // mutatorSettings CANNOT be None, otherwise RLBot will crash (this is true for v4, maybe not v5)
         mutator_settings: Some(Box::new(MutatorSettings {
             match_length: MatchLength::Unlimited,
