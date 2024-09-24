@@ -1,6 +1,6 @@
 # rlbot/rust-interface
 
-Rust interface for the (VERY ALPHA) RLBot v5 socket api
+Blazingly fast rust interface for the RLBot v5 socket api.
 
 ## Examples
 
