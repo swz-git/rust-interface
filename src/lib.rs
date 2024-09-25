@@ -55,6 +55,31 @@ pub enum Packet {
     InitComplete(InitComplete),
 }
 
+macro_rules! impl_from_flatbuffer {
+    ($x:ident) => {
+        impl From<$x> for Packet {
+            fn from(x: $x) -> Self {
+                Packet::$x(x)
+            }
+        }
+    };
+}
+
+impl_from_flatbuffer!(GameTickPacket);
+impl_from_flatbuffer!(FieldInfo);
+impl_from_flatbuffer!(StartCommand);
+impl_from_flatbuffer!(MatchSettings);
+impl_from_flatbuffer!(PlayerInput);
+impl_from_flatbuffer!(DesiredGameState);
+impl_from_flatbuffer!(RenderGroup);
+impl_from_flatbuffer!(RemoveRenderGroup);
+impl_from_flatbuffer!(MatchComm);
+impl_from_flatbuffer!(BallPrediction);
+impl_from_flatbuffer!(ConnectionSettings);
+impl_from_flatbuffer!(StopCommand);
+impl_from_flatbuffer!(SetLoadout);
+impl_from_flatbuffer!(InitComplete);
+
 impl Packet {
     pub fn data_type(&self) -> u16 {
         match *self {
@@ -141,7 +166,7 @@ pub struct RLBotConnection {
 }
 
 impl RLBotConnection {
-    pub fn send_packet(&mut self, packet: Packet) -> Result<(), RLBotError> {
+    fn raw_send_packet(&mut self, packet: Packet) -> Result<(), RLBotError> {
         let data_type_bin = packet.data_type().to_be_bytes().to_vec();
         let payload = packet.build(&mut self.builder);
         let data_len_bin = (payload.len() as u16).to_be_bytes().to_vec();
@@ -152,6 +177,10 @@ impl RLBotConnection {
         self.stream.write_all(&joined)?;
         self.stream.flush()?;
         Ok(())
+    }
+
+    pub fn send_packet<P: Into<Packet>>(&mut self, packet: P) -> Result<(), RLBotError> {
+        self.raw_send_packet(packet.into())
     }
 
     pub fn recv_packet(&mut self) -> Result<Packet, RLBotError> {

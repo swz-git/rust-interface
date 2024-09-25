@@ -3,7 +3,7 @@ use rlbot_interface::{
         ExistingMatchBehavior, GameMode, Human, MatchLength, MatchSettings, MutatorSettings,
         PlayerClass, PlayerConfiguration, PlayerLoadout, RLBot,
     },
-    Packet, RLBotConnection,
+    RLBotConnection,
 };
 
 fn main() {
@@ -52,6 +52,6 @@ fn main() {
     };
 
     rlbot_connection
-        .send_packet(Packet::MatchSettings(match_settings))
+        .send_packet(match_settings)
         .expect("start_match");
 }

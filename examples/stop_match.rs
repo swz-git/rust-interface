@@ -1,4 +1,4 @@
-use rlbot_interface::{rlbot::StopCommand, Packet, RLBotConnection};
+use rlbot_interface::{rlbot::StopCommand, RLBotConnection};
 
 fn main() {
     println!("Connecting");
@@ -8,8 +8,8 @@ fn main() {
     println!("Stopping match");
 
     rlbot_connection
-        .send_packet(Packet::StopCommand(StopCommand {
+        .send_packet(StopCommand {
             shutdown_server: false,
-        }))
+        })
         .expect("start_match");
 }

@@ -12,7 +12,7 @@ fn main() {
                 .map(|x| x.parse::<i32>().expect("int in RLBOT_SPAWN_IDS"))
                 .collect::<Vec<_>>()
         })
-        .unwrap_or(vec![]);
+        .unwrap_or_default();
 
     if spawn_ids.len() != 1 {
         panic!("The raw atba example code does not support hiveminds, please only pass one spawn_id or disable the hivemind field in bot.toml")
@@ -29,15 +29,15 @@ fn main() {
     println!("Running!");
 
     rlbot_connection
-        .send_packet(Packet::ConnectionSettings(ConnectionSettings {
+        .send_packet(ConnectionSettings {
             wants_ball_predictions: true,
             wants_comms: true,
             close_after_match: true,
-        }))
+        })
         .unwrap();
 
     rlbot_connection
-        .send_packet(Packet::InitComplete(InitComplete { spawn_id }))
+        .send_packet(InitComplete { spawn_id })
         .unwrap();
 
     loop {
@@ -55,19 +55,19 @@ fn main() {
             continue;
         };
 
-        let Some(ball) = game_tick_packet.balls.get(0) else {
+        let Some(ball) = game_tick_packet.balls.first() else {
             continue;
         };
         let target = &ball.physics;
         let car = game_tick_packet
             .players
-            .get(bot_index as usize)
+            .get(bot_index)
             .unwrap()
             .physics
             .clone();
 
         let bot_to_target_angle = f32::atan2(
-            target.location.clone().y - car.location.clone().y,
+            target.location.y - car.location.y,
             target.location.x - car.location.x,
         );
 
@@ -91,10 +91,10 @@ fn main() {
         controller.throttle = 1.;
 
         rlbot_connection
-            .send_packet(Packet::PlayerInput(PlayerInput {
+            .send_packet(PlayerInput {
                 player_index: bot_index as u32,
                 controller_state: Box::new(controller),
-            }))
+            })
             .unwrap();
     }
 }

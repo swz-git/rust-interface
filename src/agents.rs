@@ -1,4 +1,4 @@
-use std::{io::Write, thread};
+use std::{env, io::Write, mem, thread};
 
 use crate::{rlbot::*, Packet, RLBotConnection, RLBotError};
 
@@ -18,6 +18,16 @@ pub trait Agent {
     fn on_ball_prediction(&mut self, ball_prediction: BallPrediction) -> Vec<Packet> {
         vec![]
     }
+}
+
+pub fn read_spawn_ids() -> Vec<i32> {
+    env::var("RLBOT_SPAWN_IDS")
+        .map(|x| {
+            x.split(',')
+                .map(|x| x.parse::<i32>().expect("int in RLBOT_SPAWN_IDS"))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default()
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -77,12 +87,12 @@ pub fn run_agents<T: Agent>(
     // which we rely on for clean exiting
     drop(thread_send);
 
-    connection.send_packet(Packet::ConnectionSettings(ConnectionSettings {
+    connection.send_packet(ConnectionSettings {
         wants_ball_predictions: true,
         wants_comms: true,
         // wants_game_messages: true,
         close_after_match: true,
-    }))?;
+    })?;
 
     // We only need to send one init complete with the first
     // spawn id even though we may be running multiple bots.
@@ -90,9 +100,9 @@ pub fn run_agents<T: Agent>(
         // run no bots? no problem, done
         return Ok(());
     };
-    connection.send_packet(Packet::InitComplete(InitComplete {
+    connection.send_packet(InitComplete {
         spawn_id: *first_spawn_id,
-    }))?;
+    })?;
 
     // Main loop, broadcast packet to all of the bots, then wait for all of the responses
     let mut to_send: Vec<Packet> = Vec::with_capacity(spawn_ids.len());
@@ -112,10 +122,11 @@ pub fn run_agents<T: Agent>(
             to_send.extend(list.into_iter())
         }
 
-        if to_send.len() == 0 {
+        if to_send.is_empty() {
             continue; // no need to send nothing
         }
-        write_multiple_packets(&mut connection, to_send.drain(..).collect())?;
+
+        write_multiple_packets(&mut connection, mem::take(&mut to_send))?;
     }
 
     for (_, thread_handle) in threads.into_iter() {
@@ -143,10 +154,7 @@ fn write_multiple_packets(
         // Join all raw packets together
         .concat();
 
-    connection
-        .stream
-        .write_all(&to_write)
-        .map_err(|x| RLBotError::from(x))?;
+    connection.stream.write_all(&to_write)?;
 
     Ok(())
 }
