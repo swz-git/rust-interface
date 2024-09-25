@@ -1,7 +1,7 @@
 use std::{env, f32::consts::PI};
 
 use rlbot_interface::{
-    agents::{run_agents, Agent},
+    agents::{read_spawn_ids, run_agents, Agent},
     rlbot::{ControllerState, PlayerInput},
     Packet, RLBotConnection,
 };
@@ -26,7 +26,7 @@ impl Agent for AtbaAgent {
             return packets_to_send;
         };
 
-        let Some(ball) = game_tick_packet.balls.get(0) else {
+        let Some(ball) = game_tick_packet.balls.first() else {
             // If theres no ball, theres nothing to chase, don't do anything
             return packets_to_send;
         };
@@ -40,7 +40,7 @@ impl Agent for AtbaAgent {
             .clone();
 
         let bot_to_target_angle = f32::atan2(
-            target.location.clone().y - car.location.clone().y,
+            target.location.y - car.location.y,
             target.location.x - car.location.x,
         );
 
@@ -63,10 +63,13 @@ impl Agent for AtbaAgent {
 
         controller.throttle = 1.;
 
-        packets_to_send.push(Packet::PlayerInput(PlayerInput {
-            player_index: bot_index as u32,
-            controller_state: Box::new(controller),
-        }));
+        packets_to_send.push(
+            PlayerInput {
+                player_index: bot_index as u32,
+                controller_state: Box::new(controller),
+            }
+            .into(),
+        );
         packets_to_send
     }
 }
@@ -88,13 +91,7 @@ fn main() {
     // all of the bots in a team.
     //
     // TODO: Add hivemind agent and example code
-    let spawn_ids = env::var("RLBOT_SPAWN_IDS")
-        .map(|x| {
-            x.split(',')
-                .map(|x| x.parse::<i32>().expect("int in RLBOT_SPAWN_IDS"))
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or(vec![]);
+    let spawn_ids = read_spawn_ids();
 
     // Blocking
     run_agents::<AtbaAgent>(&spawn_ids, rlbot_connection).expect("to run agent");
