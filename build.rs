@@ -82,6 +82,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     // No idea why planus renames RLBot to RlBot but this fixes it
     res = res.replace("RlBot", "RLBot");
 
+    // flatbuffers-schemaTEMP looks ugly, fix it
+    res = res.replace("flatbuffers-schemaTEMP", "rlbot/flatbuffers-schema");
+
     let time_taken = format!(
         "// build.rs took {:?} of which planus took {:?}\n",
         Instant::now().duration_since(start_time),

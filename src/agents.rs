@@ -20,6 +20,10 @@ pub trait Agent {
     }
 }
 
+/// Reads a list of spawn ids from the RLBOT_SPAWN_IDS environment variable.
+///
+/// If the bot is being started in hivemind mode, this function should return a vec of length>=1.
+/// If the bot is being started in non-hivemind mode, this function should return a vec of length=1.
 pub fn read_spawn_ids() -> Vec<i32> {
     env::var("RLBOT_SPAWN_IDS")
         .map(|x| {
@@ -100,6 +104,7 @@ pub fn run_agents<T: Agent>(
         // run no bots? no problem, done
         return Ok(());
     };
+
     connection.send_packet(InitComplete {
         spawn_id: *first_spawn_id,
     })?;

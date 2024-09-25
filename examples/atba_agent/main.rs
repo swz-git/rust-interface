@@ -82,15 +82,10 @@ fn main() {
 
     println!("Running!");
 
-    // Parse the environemt variable `RLBOT_SPAWN_IDS` into a list of spawn_ids.
-    // ex. "10,20,30" -> vec![10,20,30]
-    //
     // The hivemind field in your bot.toml file decides if rlbot core is going to
     // start your bot as one or multiple instances of your binary/exe.
     // If the hivemind field is set to true, one instance of your bot will handle
     // all of the bots in a team.
-    //
-    // TODO: Add hivemind agent and example code
     let spawn_ids = read_spawn_ids();
 
     // Blocking
