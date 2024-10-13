@@ -1,24 +1,12 @@
 use std::{env, f32::consts::PI};
 
 use rlbot_interface::{
-    rlbot::{ConnectionSettings, ControllerState, InitComplete, PlayerInput},
+    rlbot::{ConnectionSettings, ControllerState, PlayerInput},
     Packet, RLBotConnection,
 };
 
 fn main() {
-    let spawn_ids = env::var("RLBOT_SPAWN_IDS")
-        .map(|x| {
-            x.split(',')
-                .map(|x| x.parse::<i32>().expect("int in RLBOT_SPAWN_IDS"))
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-
-    if spawn_ids.len() != 1 {
-        panic!("The raw atba example code does not support hiveminds, please only pass one spawn_id or disable the hivemind field in bot.toml")
-    }
-
-    let spawn_id = spawn_ids[0];
+    let agent_id = env::var("RLBOT_AGENT_ID").unwrap_or("rlbot/rust-example-bot".into());
 
     println!("Connecting");
 
@@ -33,25 +21,39 @@ fn main() {
             wants_ball_predictions: true,
             wants_comms: true,
             close_after_match: true,
+            agent_id,
         })
         .unwrap();
 
-    rlbot_connection
-        .send_packet(InitComplete { spawn_id })
-        .unwrap();
+    let mut packets_to_process = vec![];
+
+    // Wait for Controllable(Team)Info to know which indices we control
+    let controllable_team_info = loop {
+        let packet = rlbot_connection.recv_packet().unwrap();
+        if let Packet::ControllableTeamInfo(x) = packet {
+            break x;
+        } else {
+            packets_to_process.push(packet);
+            continue;
+        }
+    };
+
+    if controllable_team_info.controllables.len() != 1 {
+        panic!("The raw atba example code does not support hiveminds, please disable the hivemind field in bot.toml")
+    }
+
+    let controllable_info = controllable_team_info
+        .controllables
+        .first()
+        .expect("controllables.len() = 1");
+
+    rlbot_connection.send_packet(Packet::InitComplete).unwrap();
 
     loop {
-        let Packet::GameTickPacket(game_tick_packet) = rlbot_connection.recv_packet().unwrap()
+        let Packet::GamePacket(game_tick_packet) = packets_to_process
+            .pop()
+            .unwrap_or(rlbot_connection.recv_packet().unwrap())
         else {
-            continue;
-        };
-
-        let Some(bot_index) = game_tick_packet
-            .players
-            .iter()
-            .position(|x| x.spawn_id == spawn_id)
-        else {
-            // If we aren't in the game, don't do anything
             continue;
         };
 
@@ -61,7 +63,7 @@ fn main() {
         let target = &ball.physics;
         let car = game_tick_packet
             .players
-            .get(bot_index)
+            .get(controllable_info.index as usize)
             .unwrap()
             .physics
             .clone();
@@ -92,8 +94,8 @@ fn main() {
 
         rlbot_connection
             .send_packet(PlayerInput {
-                player_index: bot_index as u32,
-                controller_state: Box::new(controller),
+                player_index: controllable_info.index,
+                controller_state: controller,
             })
             .unwrap();
     }

@@ -1,11 +1,11 @@
-use std::{env, io::Write, mem, thread};
+use std::{collections::VecDeque, env, io::Write, mem, thread};
 
 use crate::{rlbot::*, Packet, RLBotConnection, RLBotError};
 
 #[allow(unused_variables)]
 pub trait Agent {
-    fn new(spawn_id: i32) -> Self;
-    fn tick(&mut self, game_tick_packet: GameTickPacket) -> Vec<Packet>;
+    fn new(controllable_info: ControllableInfo) -> Self;
+    fn tick(&mut self, game_tick_packet: GamePacket) -> Vec<Packet>;
     fn on_field_info(&mut self, field_info: FieldInfo) -> Vec<Packet> {
         vec![]
     }
@@ -45,28 +45,46 @@ pub enum AgentError {
 /// Run multiple agents on one thread each. They share a connection.
 /// Ok(()) means a succesfull exit; one of the bots received a None packet.
 pub fn run_agents<T: Agent>(
-    spawn_ids: &[i32],
+    connection_settings: ConnectionSettings,
     mut connection: RLBotConnection,
 ) -> Result<(), AgentError> {
+    connection.send_packet(connection_settings)?;
+
+    let mut packets_to_process = VecDeque::new();
+
+    // Wait for Controllable(Team)Info to know which indices we control
+    let controllable_team_info = loop {
+        let packet = connection.recv_packet()?;
+        if let Packet::ControllableTeamInfo(x) = packet {
+            break x;
+        } else {
+            packets_to_process.push_back(packet);
+            continue;
+        }
+    };
+
     let mut threads = vec![];
 
     let (thread_send, main_recv) = crossbeam_channel::unbounded();
-    for (i, spawn_id) in spawn_ids.iter().enumerate() {
+    for (i, controllable_info) in controllable_team_info.controllables.iter().enumerate() {
         let (main_send, thread_recv) = crossbeam_channel::unbounded::<Packet>();
         let thread_send = thread_send.clone();
-        let spawn_id = *spawn_id;
+        let controllable_info = controllable_info.clone();
 
         threads.push((
             main_send,
             thread::Builder::new()
-                .name(format!("Agent thread {i} ({spawn_id})"))
+                .name(format!(
+                    "Agent thread {i} (spawn_id: {} index: {})",
+                    controllable_info.spawn_id, controllable_info.index
+                ))
                 .spawn(move || {
-                    let mut bot = T::new(spawn_id);
+                    let mut bot = T::new(controllable_info);
 
                     while let Ok(packet) = thread_recv.recv() {
                         match packet {
                             Packet::None => break,
-                            Packet::GameTickPacket(x) => {
+                            Packet::GamePacket(x) => {
                                 thread_send.send(bot.tick(x)).unwrap();
                             }
                             Packet::FieldInfo(x) => thread_send.send(bot.on_field_info(x)).unwrap(),
@@ -91,28 +109,21 @@ pub fn run_agents<T: Agent>(
     // which we rely on for clean exiting
     drop(thread_send);
 
-    connection.send_packet(ConnectionSettings {
-        wants_ball_predictions: true,
-        wants_comms: true,
-        // wants_game_messages: true,
-        close_after_match: true,
-    })?;
-
     // We only need to send one init complete with the first
     // spawn id even though we may be running multiple bots.
-    let Some(first_spawn_id) = spawn_ids.first() else {
+    if controllable_team_info.controllables.len() == 0 {
         // run no bots? no problem, done
         return Ok(());
     };
 
-    connection.send_packet(InitComplete {
-        spawn_id: *first_spawn_id,
-    })?;
+    connection.send_packet(Packet::InitComplete)?;
 
     // Main loop, broadcast packet to all of the bots, then wait for all of the responses
-    let mut to_send: Vec<Packet> = Vec::with_capacity(spawn_ids.len());
+    let mut to_send: Vec<Packet> = Vec::with_capacity(controllable_team_info.controllables.len());
     'main_loop: loop {
-        let packet = connection.recv_packet()?;
+        let packet = packets_to_process
+            .pop_front()
+            .unwrap_or(connection.recv_packet()?);
 
         for (sender, _) in threads.iter() {
             let Ok(_) = sender.send(packet.clone()) else {

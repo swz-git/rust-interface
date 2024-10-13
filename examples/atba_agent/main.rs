@@ -2,29 +2,20 @@ use std::{env, f32::consts::PI};
 
 use rlbot_interface::{
     agents::{read_spawn_ids, run_agents, Agent},
-    rlbot::{ControllerState, PlayerInput},
+    rlbot::{ConnectionSettings, ControllableInfo, ControllerState, PlayerInput},
     Packet, RLBotConnection,
 };
 
 struct AtbaAgent {
-    spawn_id: i32,
+    controllable_info: ControllableInfo,
 }
 
 impl Agent for AtbaAgent {
-    fn new(spawn_id: i32) -> Self {
-        Self { spawn_id }
+    fn new(controllable_info: ControllableInfo) -> Self {
+        Self { controllable_info }
     }
-    fn tick(&mut self, game_tick_packet: rlbot_interface::rlbot::GameTickPacket) -> Vec<Packet> {
+    fn tick(&mut self, game_tick_packet: rlbot_interface::rlbot::GamePacket) -> Vec<Packet> {
         let mut packets_to_send = vec![];
-
-        let Some(bot_index) = game_tick_packet
-            .players
-            .iter()
-            .position(|x| x.spawn_id == self.spawn_id)
-        else {
-            // If we aren't in the game, don't do anything
-            return packets_to_send;
-        };
 
         let Some(ball) = game_tick_packet.balls.first() else {
             // If theres no ball, theres nothing to chase, don't do anything
@@ -34,7 +25,7 @@ impl Agent for AtbaAgent {
         let target = &ball.physics;
         let car = game_tick_packet
             .players
-            .get(bot_index)
+            .get(self.controllable_info.index as usize)
             .unwrap()
             .physics
             .clone();
@@ -65,8 +56,8 @@ impl Agent for AtbaAgent {
 
         packets_to_send.push(
             PlayerInput {
-                player_index: bot_index as u32,
-                controller_state: Box::new(controller),
+                player_index: self.controllable_info.index,
+                controller_state: controller,
             }
             .into(),
         );
@@ -89,7 +80,16 @@ fn main() {
     let spawn_ids = read_spawn_ids();
 
     // Blocking
-    run_agents::<AtbaAgent>(&spawn_ids, rlbot_connection).expect("to run agent");
+    run_agents::<AtbaAgent>(
+        ConnectionSettings {
+            agent_id: env::var("RLBOT_AGENT_ID").unwrap_or("rlbot/rust-example-bot".into()),
+            wants_ball_predictions: true,
+            wants_comms: true,
+            close_after_match: true,
+        },
+        rlbot_connection,
+    )
+    .expect("to run agent");
 
     println!("Spawn ids {spawn_ids:?} exited nicely")
 }

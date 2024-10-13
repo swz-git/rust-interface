@@ -1,5 +1,6 @@
 [settings]
 name = "Rust ATBA Example"
+agent_id = "rlbot/rust-example-bot"
 # looks_config = "looks.toml"
 run_command = "..\\..\\target\\release\\examples\\atba_agent.exe"
 run_command_linux = "../../target/release/examples/atba_agent"

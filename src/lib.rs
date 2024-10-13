@@ -39,7 +39,7 @@ pub enum RLBotError {
 #[derive(Debug, Clone)]
 pub enum Packet {
     None,
-    GameTickPacket(GameTickPacket),
+    GamePacket(GamePacket),
     FieldInfo(FieldInfo),
     StartCommand(StartCommand),
     MatchSettings(MatchSettings),
@@ -52,7 +52,8 @@ pub enum Packet {
     ConnectionSettings(ConnectionSettings),
     StopCommand(StopCommand),
     SetLoadout(SetLoadout),
-    InitComplete(InitComplete),
+    InitComplete,
+    ControllableTeamInfo(ControllableTeamInfo),
 }
 
 macro_rules! gen_impl_from_flat_packet {
@@ -68,7 +69,8 @@ macro_rules! gen_impl_from_flat_packet {
 }
 
 gen_impl_from_flat_packet!(
-    GameTickPacket,
+    // None
+    GamePacket,
     FieldInfo,
     StartCommand,
     MatchSettings,
@@ -81,14 +83,15 @@ gen_impl_from_flat_packet!(
     ConnectionSettings,
     StopCommand,
     SetLoadout,
-    InitComplete
+    // InitComplete
+    ControllableTeamInfo
 );
 
 impl Packet {
     pub fn data_type(&self) -> u16 {
         match *self {
             Packet::None => 0,
-            Packet::GameTickPacket(_) => 1,
+            Packet::GamePacket(_) => 1,
             Packet::FieldInfo(_) => 2,
             Packet::StartCommand(_) => 3,
             Packet::MatchSettings(_) => 4,
@@ -101,7 +104,8 @@ impl Packet {
             Packet::ConnectionSettings(_) => 11,
             Packet::StopCommand(_) => 12,
             Packet::SetLoadout(_) => 13,
-            Packet::InitComplete(_) => 14,
+            Packet::InitComplete => 14,
+            Packet::ControllableTeamInfo(_) => 15,
         }
     }
 
@@ -115,9 +119,8 @@ impl Packet {
         }
 
         match self {
-            // 0u16 (be data_type), 1u16 (be data_length), 0u8 (empty payload)
-            Packet::None => [0u8, 0u8, 0u8, 1u8, 0u8].to_vec(),
-            Packet::GameTickPacket(x) => p!(x),
+            Packet::None => Vec::new(),
+            Packet::GamePacket(x) => p!(x),
             Packet::FieldInfo(x) => p!(x),
             Packet::StartCommand(x) => p!(x),
             Packet::MatchSettings(x) => p!(x),
@@ -130,7 +133,8 @@ impl Packet {
             Packet::ConnectionSettings(x) => p!(x),
             Packet::StopCommand(x) => p!(x),
             Packet::SetLoadout(x) => p!(x),
-            Packet::InitComplete(x) => p!(x),
+            Packet::InitComplete => Vec::new(),
+            Packet::ControllableTeamInfo(x) => p!(x),
         }
     }
 
@@ -144,7 +148,7 @@ impl Packet {
 
         match data_type {
             0 => Ok(Self::None),
-            1 => Ok(Self::GameTickPacket(p!(GameTickPacketRef))),
+            1 => Ok(Self::GamePacket(p!(GamePacketRef))),
             2 => Ok(Self::FieldInfo(p!(FieldInfoRef))),
             3 => Ok(Self::StartCommand(p!(StartCommandRef))),
             4 => Ok(Self::MatchSettings(p!(MatchSettingsRef))),
@@ -157,7 +161,8 @@ impl Packet {
             11 => Ok(Self::ConnectionSettings(p!(ConnectionSettingsRef))),
             12 => Ok(Self::StopCommand(p!(StopCommandRef))),
             13 => Ok(Self::SetLoadout(p!(SetLoadoutRef))),
-            14 => Ok(Self::InitComplete(p!(InitCompleteRef))),
+            14 => Ok(Self::InitComplete),
+            15 => Ok(Self::ControllableTeamInfo(p!(ControllableTeamInfoRef))),
             _ => Err(PacketParseError::InvalidDataType(data_type)),
         }
     }
