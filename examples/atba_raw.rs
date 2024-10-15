@@ -61,6 +61,12 @@ fn main() {
             continue;
         };
         let target = &ball.physics;
+
+        // We're not in the gtp, skip this tick
+        if game_tick_packet.players.len() <= controllable_info.index as usize {
+            continue;
+        }
+
         let car = game_tick_packet
             .players
             .get(controllable_info.index as usize)

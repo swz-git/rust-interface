@@ -22,6 +22,11 @@ impl Agent for AtbaAgent {
             return packets_to_send;
         };
 
+        // We're not in the gtp, skip this tick
+        if game_tick_packet.players.len() <= self.controllable_info.index as usize {
+            return packets_to_send;
+        }
+
         let target = &ball.physics;
         let car = game_tick_packet
             .players
