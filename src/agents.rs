@@ -1,4 +1,4 @@
-use std::{collections::VecDeque, env, io::Write, mem, thread};
+use std::{collections::VecDeque, io::Write, mem, thread};
 
 use crate::{rlbot::*, Packet, RLBotConnection, RLBotError};
 
@@ -18,20 +18,6 @@ pub trait Agent {
     fn on_ball_prediction(&mut self, ball_prediction: BallPrediction) -> Vec<Packet> {
         vec![]
     }
-}
-
-/// Reads a list of spawn ids from the RLBOT_SPAWN_IDS environment variable.
-///
-/// If the bot is being started in hivemind mode, this function should return a vec of length>=1.
-/// If the bot is being started in non-hivemind mode, this function should return a vec of length=1.
-pub fn read_spawn_ids() -> Vec<i32> {
-    env::var("RLBOT_SPAWN_IDS")
-        .map(|x| {
-            x.split(',')
-                .map(|x| x.parse::<i32>().expect("int in RLBOT_SPAWN_IDS"))
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default()
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -111,7 +97,7 @@ pub fn run_agents<T: Agent>(
 
     // We only need to send one init complete with the first
     // spawn id even though we may be running multiple bots.
-    if controllable_team_info.controllables.len() == 0 {
+    if controllable_team_info.controllables.is_empty() {
         // run no bots? no problem, done
         return Ok(());
     };

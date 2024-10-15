@@ -82,12 +82,13 @@ fn main() {
     // start your bot as one or multiple instances of your binary/exe.
     // If the hivemind field is set to true, one instance of your bot will handle
     // all of the bots in a team.
-    let spawn_ids = read_spawn_ids();
+
+    let agent_id = env::var("RLBOT_AGENT_ID").unwrap_or("rlbot/rust-example-bot".into());
 
     // Blocking
     run_agents::<AtbaAgent>(
         ConnectionSettings {
-            agent_id: env::var("RLBOT_AGENT_ID").unwrap_or("rlbot/rust-example-bot".into()),
+            agent_id: agent_id.clone(),
             wants_ball_predictions: true,
             wants_comms: true,
             close_after_match: true,
@@ -96,5 +97,5 @@ fn main() {
     )
     .expect("to run agent");
 
-    println!("Spawn ids {spawn_ids:?} exited nicely")
+    println!("Agent(s) with agent_id `{agent_id}` exited nicely")
 }
