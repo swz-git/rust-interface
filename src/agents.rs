@@ -51,9 +51,9 @@ pub fn run_agents<T: Agent>(
 
     let mut threads = vec![];
 
-    let (thread_send, main_recv) = crossbeam_channel::unbounded();
+    let (thread_send, main_recv) = kanal::bounded(0);
     for (i, controllable_info) in controllable_team_info.controllables.iter().enumerate() {
-        let (main_send, thread_recv) = crossbeam_channel::unbounded::<Packet>();
+        let (main_send, thread_recv) = kanal::bounded::<Packet>(0);
         let thread_send = thread_send.clone();
         let controllable_info = controllable_info.clone();
 
