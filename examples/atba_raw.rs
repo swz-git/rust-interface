@@ -71,8 +71,7 @@ fn main() {
             .players
             .get(controllable_info.index as usize)
             .unwrap()
-            .physics
-            .clone();
+            .physics;
 
         let bot_to_target_angle = f32::atan2(
             target.location.y - car.location.y,

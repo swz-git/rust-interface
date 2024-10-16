@@ -1,7 +1,7 @@
 use std::{env, f32::consts::PI};
 
 use rlbot_interface::{
-    agents::{read_spawn_ids, run_agents, Agent},
+    agents::{run_agents, Agent},
     rlbot::{ConnectionSettings, ControllableInfo, ControllerState, PlayerInput},
     Packet, RLBotConnection,
 };
@@ -32,8 +32,7 @@ impl Agent for AtbaAgent {
             .players
             .get(self.controllable_info.index as usize)
             .unwrap()
-            .physics
-            .clone();
+            .physics;
 
         let bot_to_target_angle = f32::atan2(
             target.location.y - car.location.y,
