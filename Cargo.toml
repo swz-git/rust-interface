@@ -18,11 +18,13 @@ codegen-units = 1
 panic = "abort"
 
 [dependencies]
-kanal = { version = "0.1.0-pre8", default-features = false }
+kanal = { version = "0.1.0-pre8" }
 glam = { version = "0.27.0", optional = true }
 serde = { version = "1.0.210", features = ["derive"] }
 thiserror = "1.0.50"
 planus = "1.0.0"
+tokio = { version = "1.41.0", features = ["full"] }
+futures = "0.3.31"
 
 [features]
 default = ["glam"]

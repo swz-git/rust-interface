@@ -10,6 +10,10 @@ pub mod agents;
 
 #[cfg(feature = "glam")]
 pub use glam;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    task::block_in_place,
+};
 
 pub(crate) mod flat_wrapper;
 
@@ -209,11 +213,65 @@ impl RLBotConnection {
         Ok(packet)
     }
 
-    pub fn new(addr: &str) -> Result<RLBotConnection, RLBotError> {
+    pub fn new(addr: &str) -> Result<Self, RLBotError> {
         let stream = TcpStream::connect(addr)?;
         stream.set_nodelay(true)?;
 
-        Ok(RLBotConnection {
+        Ok(Self {
+            stream,
+            builder: planus::Builder::with_capacity(1024),
+            recv_buf: [0u8; u16::MAX as usize],
+        })
+    }
+}
+
+pub struct RLBotConnectionTokio {
+    stream: tokio::net::TcpStream,
+    builder: planus::Builder,
+    recv_buf: [u8; u16::MAX as usize],
+}
+
+impl RLBotConnectionTokio {
+    async fn send_packet_enum(&mut self, packet: Packet) -> Result<(), RLBotError> {
+        let data_type_bin = packet.data_type().to_be_bytes().to_vec();
+        let payload = block_in_place(|| packet.build(&mut self.builder));
+        let data_len_bin = (payload.len() as u16).to_be_bytes().to_vec();
+
+        // Join so we make sure everything gets written in the right order
+        let joined = [data_type_bin, data_len_bin, payload].concat();
+
+        self.stream.write_all(&joined).await?;
+        self.stream.flush().await?;
+        Ok(())
+    }
+
+    pub async fn send_packet<P: Into<Packet>>(&mut self, packet: P) -> Result<(), RLBotError> {
+        self.send_packet_enum(packet.into()).await
+    }
+
+    pub async fn recv_packet(&mut self) -> Result<Packet, RLBotError> {
+        let mut buf = [0u8; 4];
+
+        // TODO: disable work stealing here if this causes problems
+        self.stream.read_exact(&mut buf).await?;
+
+        let data_type = u16::from_be_bytes([buf[0], buf[1]]);
+        let data_len = u16::from_be_bytes([buf[2], buf[3]]);
+
+        let buf = &mut self.recv_buf[0..data_len as usize];
+
+        self.stream.read_exact(buf).await?;
+
+        let packet = Packet::from_payload(data_type, buf)?;
+
+        Ok(packet)
+    }
+
+    pub async fn new(addr: &str) -> Result<Self, RLBotError> {
+        let stream = tokio::net::TcpStream::connect(addr).await?;
+        stream.set_nodelay(true)?;
+
+        Ok(Self {
             stream,
             builder: planus::Builder::with_capacity(1024),
             recv_buf: [0u8; u16::MAX as usize],
