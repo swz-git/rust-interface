@@ -22,14 +22,14 @@ pub trait Agent {
 
 #[derive(thiserror::Error, Debug)]
 pub enum AgentError {
-    #[error("Agent paniced")]
+    #[error("Agent panicked")]
     AgentPanic,
     #[error("RLBot failed")]
     PacketParseError(#[from] crate::RLBotError),
 }
 
 /// Run multiple agents on one thread each. They share a connection.
-/// Ok(()) means a succesfull exit; one of the bots received a None packet.
+/// Ok(()) means a successful exit; one of the bots received a None packet.
 pub fn run_agents<T: Agent>(
     connection_settings: ConnectionSettings,
     mut connection: RLBotConnection,
