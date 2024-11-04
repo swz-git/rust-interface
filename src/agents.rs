@@ -5,7 +5,7 @@ use crate::{rlbot::*, Packet, RLBotConnection, RLBotError};
 #[allow(unused_variables)]
 pub trait Agent {
     fn new(controllable_info: ControllableInfo) -> Self;
-    fn tick(&mut self, game_tick_packet: GamePacket) -> Vec<Packet>;
+    fn tick(&mut self, game_packet: GamePacket) -> Vec<Packet>;
     fn on_field_info(&mut self, field_info: FieldInfo) -> Vec<Packet> {
         vec![]
     }

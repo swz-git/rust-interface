@@ -50,24 +50,24 @@ fn main() {
     rlbot_connection.send_packet(Packet::InitComplete).unwrap();
 
     loop {
-        let Packet::GamePacket(game_tick_packet) = packets_to_process
+        let Packet::GamePacket(game_packet) = packets_to_process
             .pop()
             .unwrap_or(rlbot_connection.recv_packet().unwrap())
         else {
             continue;
         };
 
-        let Some(ball) = game_tick_packet.balls.first() else {
+        let Some(ball) = game_packet.balls.first() else {
             continue;
         };
         let target = &ball.physics;
 
         // We're not in the gtp, skip this tick
-        if game_tick_packet.players.len() <= controllable_info.index as usize {
+        if game_packet.players.len() <= controllable_info.index as usize {
             continue;
         }
 
-        let car = game_tick_packet
+        let car = game_packet
             .players
             .get(controllable_info.index as usize)
             .unwrap()

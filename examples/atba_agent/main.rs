@@ -14,21 +14,21 @@ impl Agent for AtbaAgent {
     fn new(controllable_info: ControllableInfo) -> Self {
         Self { controllable_info }
     }
-    fn tick(&mut self, game_tick_packet: rlbot_interface::rlbot::GamePacket) -> Vec<Packet> {
+    fn tick(&mut self, game_packet: rlbot_interface::rlbot::GamePacket) -> Vec<Packet> {
         let mut packets_to_send = vec![];
 
-        let Some(ball) = game_tick_packet.balls.first() else {
+        let Some(ball) = game_packet.balls.first() else {
             // If theres no ball, theres nothing to chase, don't do anything
             return packets_to_send;
         };
 
         // We're not in the gtp, skip this tick
-        if game_tick_packet.players.len() <= self.controllable_info.index as usize {
+        if game_packet.players.len() <= self.controllable_info.index as usize {
             return packets_to_send;
         }
 
         let target = &ball.physics;
-        let car = game_tick_packet
+        let car = game_packet
             .players
             .get(self.controllable_info.index as usize)
             .unwrap()
