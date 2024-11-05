@@ -23,6 +23,7 @@ glam = { version = "0.27.0", optional = true }
 serde = { version = "1.0.210", features = ["derive"] }
 thiserror = "1.0.50"
 planus = "1.0.0"
+swap-buffer-queue = { version = "0.2.1", features = ["std"] }
 
 [features]
 default = ["glam"]

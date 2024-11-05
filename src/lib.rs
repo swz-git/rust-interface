@@ -1,6 +1,7 @@
 use std::{
-    io::{self, Read, Write},
-    net::TcpStream,
+    io::{Read, Write},
+    net::{AddrParseError, SocketAddr, TcpStream},
+    str::FromStr,
 };
 
 use planus::ReadAsRoot;
@@ -30,9 +31,11 @@ pub enum PacketParseError {
 #[derive(Error, Debug)]
 pub enum RLBotError {
     #[error("Connection to RLBot failed")]
-    Connection(#[from] io::Error),
+    Connection(#[from] std::io::Error),
     #[error("Parsing packet failed")]
     PacketParseError(#[from] PacketParseError),
+    #[error("Invalid address, cannot parse")]
+    InvalidAddrError(#[from] AddrParseError),
 }
 
 #[allow(dead_code)]
@@ -210,7 +213,8 @@ impl RLBotConnection {
     }
 
     pub fn new(addr: &str) -> Result<RLBotConnection, RLBotError> {
-        let stream = TcpStream::connect(addr)?;
+        let stream = TcpStream::connect(SocketAddr::from_str(addr)?)?;
+
         stream.set_nodelay(true)?;
 
         Ok(RLBotConnection {

@@ -1,9 +1,9 @@
 use std::{env, f32::consts::PI};
 
 use rlbot_interface::{
-    agents::{run_agents, Agent},
+    agents::{run_agents, Agent, PacketQueue},
     rlbot::{ConnectionSettings, ControllableInfo, ControllerState, PlayerInput},
-    Packet, RLBotConnection,
+    RLBotConnection,
 };
 
 struct AtbaAgent {
@@ -14,17 +14,19 @@ impl Agent for AtbaAgent {
     fn new(controllable_info: ControllableInfo) -> Self {
         Self { controllable_info }
     }
-    fn tick(&mut self, game_packet: rlbot_interface::rlbot::GamePacket) -> Vec<Packet> {
-        let mut packets_to_send = vec![];
-
+    fn tick(
+        &mut self,
+        game_packet: rlbot_interface::rlbot::GamePacket,
+        packet_queue: &mut PacketQueue,
+    ) {
         let Some(ball) = game_packet.balls.first() else {
             // If theres no ball, theres nothing to chase, don't do anything
-            return packets_to_send;
+            return;
         };
 
         // We're not in the gtp, skip this tick
         if game_packet.players.len() <= self.controllable_info.index as usize {
-            return packets_to_send;
+            return;
         }
 
         let target = &ball.physics;
@@ -58,14 +60,13 @@ impl Agent for AtbaAgent {
 
         controller.throttle = 1.;
 
-        packets_to_send.push(
+        packet_queue.push(
             PlayerInput {
                 player_index: self.controllable_info.index,
                 controller_state: controller,
             }
             .into(),
         );
-        packets_to_send
     }
 }
 fn main() {
