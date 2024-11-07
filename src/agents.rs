@@ -1,22 +1,30 @@
-use std::{collections::VecDeque, io::Write, mem, thread};
+use std::{
+    collections::VecDeque,
+    io::Write,
+    mem,
+    sync::Arc,
+    thread::{self},
+};
 
 use crate::{rlbot::*, Packet, RLBotConnection, RLBotError};
 
 #[allow(unused_variables)]
 pub trait Agent {
     fn new(controllable_info: ControllableInfo) -> Self;
-    fn tick(&mut self, game_packet: GamePacket) -> Vec<Packet>;
-    fn on_field_info(&mut self, field_info: FieldInfo) -> Vec<Packet> {
-        vec![]
+    fn tick(&mut self, game_packet: &GamePacket, packet_queue: &mut PacketQueue) -> ();
+    fn on_field_info(&mut self, field_info: &FieldInfo, packet_queue: &mut PacketQueue) -> () {}
+    fn on_match_settings(
+        &mut self,
+        match_settings: &MatchSettings,
+        packet_queue: &mut PacketQueue,
+    ) -> () {
     }
-    fn on_match_settings(&mut self, match_settings: MatchSettings) -> Vec<Packet> {
-        vec![]
-    }
-    fn on_match_comm(&mut self, match_comm: MatchComm) -> Vec<Packet> {
-        vec![]
-    }
-    fn on_ball_prediction(&mut self, ball_prediction: BallPrediction) -> Vec<Packet> {
-        vec![]
+    fn on_match_comm(&mut self, match_comm: &MatchComm, packet_queue: &mut PacketQueue) -> () {}
+    fn on_ball_prediction(
+        &mut self,
+        ball_prediction: &BallPrediction,
+        packet_queue: &mut PacketQueue,
+    ) -> () {
     }
 }
 
@@ -26,6 +34,25 @@ pub enum AgentError {
     AgentPanic,
     #[error("RLBot failed")]
     PacketParseError(#[from] crate::RLBotError),
+}
+
+/// A queue of packets to be sent to RLBotServer
+pub struct PacketQueue {
+    internal_queue: Vec<Packet>,
+}
+
+impl PacketQueue {
+    pub fn new() -> Self {
+        PacketQueue {
+            internal_queue: Vec::with_capacity(16),
+        }
+    }
+    pub fn push(&mut self, packet: Packet) {
+        self.internal_queue.push(packet);
+    }
+    fn empty(&mut self) -> Vec<Packet> {
+        mem::take(&mut self.internal_queue)
+    }
 }
 
 /// Run multiple agents on one thread each. They share a connection.
@@ -51,14 +78,16 @@ pub fn run_agents<T: Agent>(
 
     let mut threads = vec![];
 
-    let (thread_send, main_recv) = kanal::bounded(0);
+    let (outgoing_sender, outgoing_recver) =
+        kanal::bounded::<Vec<Packet>>(controllable_team_info.controllables.len());
     for (i, controllable_info) in controllable_team_info.controllables.iter().enumerate() {
-        let (main_send, thread_recv) = kanal::bounded::<Packet>(0);
-        let thread_send = thread_send.clone();
+        let (incoming_sender, incoming_recver) = kanal::bounded::<Arc<Packet>>(1);
         let controllable_info = controllable_info.clone();
 
+        let outgoing_sender = outgoing_sender.clone();
+
         threads.push((
-            main_send,
+            incoming_sender,
             thread::Builder::new()
                 .name(format!(
                     "Agent thread {i} (spawn_id: {} index: {})",
@@ -66,34 +95,39 @@ pub fn run_agents<T: Agent>(
                 ))
                 .spawn(move || {
                     let mut bot = T::new(controllable_info);
+                    let mut outgoing_queue_local = PacketQueue::new();
 
-                    while let Ok(packet) = thread_recv.recv() {
-                        match packet {
+                    loop {
+                        let Ok(packet) = incoming_recver.recv() else {
+                            panic!("channel recv failed")
+                        };
+
+                        match &*packet {
                             Packet::None => break,
-                            Packet::GamePacket(x) => {
-                                thread_send.send(bot.tick(x)).unwrap();
-                            }
-                            Packet::FieldInfo(x) => thread_send.send(bot.on_field_info(x)).unwrap(),
+                            Packet::GamePacket(x) => bot.tick(x, &mut outgoing_queue_local),
+                            Packet::FieldInfo(x) => bot.on_field_info(x, &mut outgoing_queue_local),
                             Packet::MatchSettings(x) => {
-                                thread_send.send(bot.on_match_settings(x)).unwrap()
+                                bot.on_match_settings(x, &mut outgoing_queue_local)
                             }
-                            Packet::MatchComm(x) => thread_send.send(bot.on_match_comm(x)).unwrap(),
+                            Packet::MatchComm(x) => bot.on_match_comm(x, &mut outgoing_queue_local),
                             Packet::BallPrediction(x) => {
-                                thread_send.send(bot.on_ball_prediction(x)).unwrap()
+                                bot.on_ball_prediction(x, &mut outgoing_queue_local)
                             }
-                            _ => { /* The rest of the packets are only client -> server */ }
+                            _ => unreachable!() /* The rest of the packets are only client -> server */
                         }
+
+                        outgoing_sender.send(outgoing_queue_local.empty()).expect("Couldn't send outgoing");
                     }
-                    drop(thread_send);
-                    drop(thread_recv);
+                    drop(incoming_recver);
+                    drop(outgoing_sender);
                 })
                 .unwrap(),
         ));
     }
-    // drop never-again-used copy of thread_send
-    // NO NOT REMOVE, otherwise main_recv.recv() will never error
+    // drop never-again-used copy of outgoing_sender
+    // NO NOT REMOVE, otherwise outgoing_recver.recv() will never error
     // which we rely on for clean exiting
-    drop(thread_send);
+    drop(outgoing_sender);
 
     // We only need to send one init complete with the first
     // spawn id even though we may be running multiple bots.
@@ -104,35 +138,36 @@ pub fn run_agents<T: Agent>(
 
     connection.send_packet(Packet::InitComplete)?;
 
-    // Main loop, broadcast packet to all of the bots, then wait for all of the responses
-    let mut to_send: Vec<Packet> = Vec::with_capacity(controllable_team_info.controllables.len());
+    // Main loop, broadcast packet to all of the bots, then wait for all of the outgoing vecs
+    // Rust limited to 32 for now, hopefully fixed in the future though not really a big deal
+    let mut to_send: [Vec<Packet>; 32] = Default::default();
     'main_loop: loop {
-        let packet = packets_to_process
-            .pop_front()
-            .unwrap_or(connection.recv_packet()?);
+        let mut maybe_packet = packets_to_process.pop_front();
+        if maybe_packet.is_none() && connection.stream.peek(&mut 0u16.to_be_bytes()).is_ok() {
+            maybe_packet = Some(connection.recv_packet()?);
+        };
 
-        for (sender, _) in threads.iter() {
-            let Ok(_) = sender.send(packet.clone()) else {
-                return Err(AgentError::AgentPanic);
-            };
+        if let Some(packet) = maybe_packet {
+            let arc = Arc::new(packet);
+            for (incoming_sender, _) in threads.iter() {
+                let Ok(_) = incoming_sender.send(arc.clone()) else {
+                    return Err(AgentError::AgentPanic);
+                };
+            }
         }
 
-        for (_sender, _) in threads.iter() {
-            let Ok(list) = main_recv.recv() else {
+        for i in 0..threads.len() {
+            if let Ok(messages) = outgoing_recver.recv() {
+                to_send[i as usize] = messages;
+            } else {
                 break 'main_loop;
-            };
-            to_send.extend(list.into_iter())
+            }
         }
 
-        if to_send.is_empty() {
-            continue; // no need to send nothing
-        }
-
-        write_multiple_packets(&mut connection, mem::take(&mut to_send))?;
-    }
-
-    for (_, thread_handle) in threads.into_iter() {
-        thread_handle.join().unwrap()
+        write_multiple_packets(
+            &mut connection,
+            mem::take(&mut to_send).into_iter().flatten(),
+        )?;
     }
 
     Ok(())
@@ -140,11 +175,10 @@ pub fn run_agents<T: Agent>(
 
 fn write_multiple_packets(
     connection: &mut RLBotConnection,
-    packets: Vec<Packet>,
+    packets: impl Iterator<Item = Packet>,
 ) -> Result<(), RLBotError> {
     let to_write = packets
-        .into_iter()
-        // convert Packet to Vec<u8> that rlbot can understand
+        // convert Packet to Vec<u8> that RLBotServer can understand
         .map(|x| {
             let data_type_bin = x.data_type().to_be_bytes().to_vec();
             let payload = x.build(&mut connection.builder);
@@ -152,11 +186,11 @@ fn write_multiple_packets(
 
             [data_type_bin, data_len_bin, payload].concat()
         })
-        .collect::<Vec<_>>()
-        // Join all raw packets together
-        .concat();
+        .flatten()
+        .collect::<Vec<_>>();
 
     connection.stream.write_all(&to_write)?;
+    connection.stream.flush()?;
 
     Ok(())
 }
