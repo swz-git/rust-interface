@@ -1,20 +1,20 @@
-use std::{env, f32::consts::PI};
+use std::f32::consts::PI;
 
 use rlbot_interface::{
     rlbot::{ConnectionSettings, ControllerState, PlayerInput},
+    util::RLBotEnvironment,
     Packet, RLBotConnection,
 };
 
 fn main() {
-    let agent_id = env::var("RLBOT_AGENT_ID").unwrap_or("rlbot/rust-example-bot".into());
+    let RLBotEnvironment {
+        server_addr,
+        agent_id,
+    } = RLBotEnvironment::from_env();
 
-    println!("Connecting");
+    let mut rlbot_connection = RLBotConnection::new(&server_addr).expect("connection");
 
-    let rlbot_addr = env::var("RLBOT_CORE_ADDR").unwrap_or("127.0.0.1:23234".to_owned());
-
-    let mut rlbot_connection = RLBotConnection::new(&rlbot_addr).expect("connection");
-
-    println!("Running!");
+    println!("Connected");
 
     rlbot_connection
         .send_packet(ConnectionSettings {
@@ -27,7 +27,7 @@ fn main() {
 
     let mut packets_to_process = vec![];
 
-    // Wait for Controllable(Team)Info to know which indices we control
+    // Wait for ControllableTeamInfo to know which indices we control
     let controllable_team_info = loop {
         let packet = rlbot_connection.recv_packet().unwrap();
         if let Packet::ControllableTeamInfo(x) = packet {

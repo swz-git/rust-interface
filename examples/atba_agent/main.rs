@@ -1,8 +1,9 @@
-use std::{env, f32::consts::PI};
+use std::f32::consts::PI;
 
 use rlbot_interface::{
     agents::{run_agents, Agent, PacketQueue},
     rlbot::{ConnectionSettings, ControllableInfo, ControllerState, PlayerInput},
+    util::RLBotEnvironment,
     RLBotConnection,
 };
 
@@ -60,21 +61,21 @@ impl Agent for AtbaAgent {
 
         controller.throttle = 1.;
 
-        packet_queue.push(
-            PlayerInput {
-                player_index: self.controllable_info.index,
-                controller_state: controller,
-            }
-            .into(),
-        );
+        packet_queue.push(PlayerInput {
+            player_index: self.controllable_info.index,
+            controller_state: controller,
+        });
     }
 }
 fn main() {
+    let RLBotEnvironment {
+        server_addr,
+        agent_id,
+    } = RLBotEnvironment::from_env();
+
     println!("Connecting");
 
-    let rlbot_addr = env::var("RLBOT_CORE_ADDR").unwrap_or("127.0.0.1:23234".to_owned());
-
-    let rlbot_connection = RLBotConnection::new(&rlbot_addr).expect("connection");
+    let rlbot_connection = RLBotConnection::new(&server_addr).expect("connection");
 
     println!("Running!");
 
@@ -82,8 +83,6 @@ fn main() {
     // start your bot as one or multiple instances of your binary/exe.
     // If the hivemind field is set to true, one instance of your bot will handle
     // all of the bots in a team.
-
-    let agent_id = env::var("RLBOT_AGENT_ID").unwrap_or("rlbot/rust-example-bot".into());
 
     // Blocking
     run_agents::<AtbaAgent>(

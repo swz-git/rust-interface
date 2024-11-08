@@ -8,6 +8,7 @@ use planus::ReadAsRoot;
 use thiserror::Error;
 
 pub mod agents;
+pub mod util;
 
 #[cfg(feature = "glam")]
 pub use glam;
@@ -24,8 +25,6 @@ pub enum PacketParseError {
     InvalidDataType(u16),
     #[error("Unpacking flatbuffer failed")]
     InvalidFlatbuffer(#[from] planus::Error),
-    // #[error("Unpacking flatbuffer failed")]
-    // InvalidFlatbuffer(#[from] InvalidFlatbuffer),
 }
 
 #[derive(Error, Debug)]
@@ -91,7 +90,7 @@ gen_impl_from_flat_packet!(
 );
 
 impl Packet {
-    pub fn data_type(&self) -> u16 {
+    pub const fn data_type(&self) -> u16 {
         match *self {
             Packet::None => 0,
             Packet::GamePacket(_) => 1,

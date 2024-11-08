@@ -47,8 +47,8 @@ impl PacketQueue {
             internal_queue: Vec::with_capacity(16),
         }
     }
-    pub fn push(&mut self, packet: Packet) {
-        self.internal_queue.push(packet);
+    pub fn push(&mut self, packet: impl Into<Packet>) {
+        self.internal_queue.push(packet.into());
     }
     fn empty(&mut self) -> Vec<Packet> {
         mem::take(&mut self.internal_queue)
@@ -65,7 +65,7 @@ pub fn run_agents<T: Agent>(
 
     let mut packets_to_process = VecDeque::new();
 
-    // Wait for Controllable(Team)Info to know which indices we control
+    // Wait for ControllableTeamInfo to know which indices we control
     let controllable_team_info = loop {
         let packet = connection.recv_packet()?;
         if let Packet::ControllableTeamInfo(x) = packet {
