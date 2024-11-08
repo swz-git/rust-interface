@@ -47,8 +47,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         fs::create_dir(SCHEMA_DIR_TEMP)?;
     }
 
-    // let required_array_regex = Regex::new(r"([a-z_A-Z]+: *\[[A-Z-a-z]+\]) *\(required\)")?;
-
     for (fbs_file_path, temp_file_path) in fbs_file_paths.iter().zip(temp_file_paths.iter()) {
         let mut contents = fs::read_to_string(fbs_file_path)?;
 
@@ -61,14 +59,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
         // include all files (planus isn't smart enough to auto include the parent file)
         contents = include_all_str.clone() + &contents;
-
-        // Don't do this, it breaks the binary rep of the schema
-        // // planus can't generate default impls for structs that have
-        // // arrays with (required) fields.
-        // // we replace (required) with a default value
-        // contents = required_array_regex
-        //     .replace_all(&contents, "$1=[]")
-        //     .to_string();
 
         fs::File::create(temp_file_path)?.write_all(contents.as_bytes())?;
     }
