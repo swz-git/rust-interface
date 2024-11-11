@@ -6,14 +6,14 @@ use std::{
     time::Instant,
 };
 
-const SCHEMA_DIR: &str = "./flatbuffers-schema";
+const SCHEMA_DIR: &str = "../../flatbuffers-schema";
 const SCHEMA_DIR_TEMP: &str = "./flatbuffers-schemaTEMP";
-const OUT_FILE: &str = "./src/flat_wrapper/planus_flat.rs";
+const OUT_FILE: &str = "./src/planus_flat.rs";
 
 // this is pretty janky, but it works
 
 fn main() -> Result<(), Box<dyn Error>> {
-    println!("cargo:rerun-if-changed=flatbuffers-schema");
+    println!("cargo:rerun-if-changed=../../flatbuffers-schema");
     println!("cargo:rerun-if-changed=build.rs");
 
     let start_time = Instant::now();

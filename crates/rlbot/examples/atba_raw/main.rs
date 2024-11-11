@@ -1,7 +1,7 @@
 use std::f32::consts::PI;
 
-use rlbot_interface::{
-    rlbot::{ConnectionSettings, ControllerState, PlayerInput},
+use rlbot::{
+    flat::{ConnectionSettings, ControllerState, PlayerInput},
     util::RLBotEnvironment,
     Packet, RLBotConnection,
 };

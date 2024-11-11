@@ -1,7 +1,7 @@
 use std::env::args;
 
-use rlbot_interface::{
-    rlbot::{
+use rlbot::{
+    flat::{
         ExistingMatchBehavior, GameMode, Human, MatchLength, MatchSettings, MutatorSettings,
         PlayerClass, PlayerConfiguration, RLBot,
     },

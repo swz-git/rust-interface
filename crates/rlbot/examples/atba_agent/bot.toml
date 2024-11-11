@@ -1,9 +1,9 @@
 [settings]
-name = "Rust Example Bot (atba_raw)"
+name = "Rust Example Bot (atba_agent)"
 agent_id = "rlbot/rust-example-bot"
 # looks_config = "looks.toml"
-run_command = "..\\..\\target\\release\\examples\\atba_raw.exe"
-run_command_linux = "../../target/release/examples/atba_raw"
+run_command = "..\\..\\..\\..\\target\\release\\examples\\atba_agent.exe"
+run_command_linux = "../../../../target/release/examples/atba_agent"
 # rust_interface::agents::run_agents supports "non-hivemind" multithreading using one connection
 hivemind = true
 

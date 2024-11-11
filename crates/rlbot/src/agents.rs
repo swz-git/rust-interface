@@ -6,7 +6,7 @@ use std::{
     thread::{self},
 };
 
-use crate::{rlbot::*, Packet, RLBotConnection, RLBotError};
+use crate::{flat::*, Packet, RLBotConnection, RLBotError};
 
 #[allow(unused_variables)]
 pub trait Agent {

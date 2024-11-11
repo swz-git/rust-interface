@@ -1,8 +1,8 @@
 use std::f32::consts::PI;
 
-use rlbot_interface::{
+use rlbot::{
     agents::{run_agents, Agent, PacketQueue},
-    rlbot::{ConnectionSettings, ControllableInfo, ControllerState, PlayerInput},
+    flat::{ConnectionSettings, ControllableInfo, ControllerState, PlayerInput},
     util::RLBotEnvironment,
     RLBotConnection,
 };
@@ -15,11 +15,7 @@ impl Agent for AtbaAgent {
     fn new(controllable_info: ControllableInfo) -> Self {
         Self { controllable_info }
     }
-    fn tick(
-        &mut self,
-        game_packet: &rlbot_interface::rlbot::GamePacket,
-        packet_queue: &mut PacketQueue,
-    ) {
+    fn tick(&mut self, game_packet: &rlbot::flat::GamePacket, packet_queue: &mut PacketQueue) {
         let Some(ball) = game_packet.balls.first() else {
             // If theres no ball, theres nothing to chase, don't do anything
             return;

@@ -4,20 +4,18 @@ use std::{
     str::FromStr,
 };
 
-use planus::ReadAsRoot;
+use rlbot_flat::planus::{self, ReadAsRoot};
 use thiserror::Error;
 
 pub mod agents;
 pub mod util;
 
 #[cfg(feature = "glam")]
-pub use glam;
+pub use rlbot_flat::glam;
 
-pub(crate) mod flat_wrapper;
+pub use rlbot_flat::flat;
 
-pub use crate::flat_wrapper::rlbot;
-
-use rlbot::*;
+use flat::*;
 
 #[derive(Error, Debug)]
 pub enum PacketParseError {

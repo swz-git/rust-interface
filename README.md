@@ -4,4 +4,4 @@ Blazingly fast rust interface for the RLBot v5 socket api.
 
 ## Examples
 
-see `examples` folder
+see `crates/rlbot/examples` folder
