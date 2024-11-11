@@ -12,7 +12,7 @@ impl RLBotEnvironment {
             "127.0.0.1:{}",
             env::var("RLBOT_SERVER_PORT").unwrap_or("23234".into())
         ));
-        let agent_id = env::var("RLBOT_AGENT_ID").unwrap_or("rlbot/rust-example-bot".into());
+        let agent_id = env::var("RLBOT_AGENT_ID").unwrap_or("".into());
 
         Self {
             server_addr,
