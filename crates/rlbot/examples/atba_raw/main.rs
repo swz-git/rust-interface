@@ -80,12 +80,7 @@ fn main() {
 
         let mut bot_front_to_target_angle = bot_to_target_angle - car.rotation.yaw;
 
-        if bot_front_to_target_angle > PI {
-            bot_front_to_target_angle -= 2. * PI
-        };
-        if bot_front_to_target_angle < -PI {
-            bot_front_to_target_angle += 2. * PI
-        };
+        bot_front_to_target_angle = (bot_front_to_target_angle + PI).rem_euclid(2. * PI) - PI;
 
         let mut controller = ControllerState::default();
 
