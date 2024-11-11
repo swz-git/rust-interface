@@ -9,8 +9,12 @@ use rlbot::{
 fn main() {
     let RLBotEnvironment {
         server_addr,
-        agent_id,
+        mut agent_id,
     } = RLBotEnvironment::from_env();
+
+    if agent_id.is_empty() {
+        agent_id = "rlbot/rust-example-bot".into()
+    }
 
     let mut rlbot_connection = RLBotConnection::new(&server_addr).expect("connection");
 
