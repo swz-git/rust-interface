@@ -2,8 +2,8 @@ use std::env::args;
 
 use rlbot::{
     flat::{
-        ExistingMatchBehavior, GameMode, Human, MatchLength, MatchSettings, MutatorSettings,
-        PlayerClass, PlayerConfiguration, RLBot,
+        CustomBot, ExistingMatchBehavior, GameMode, Human, MatchLength, MatchSettings,
+        MutatorSettings, PlayerClass, PlayerConfiguration,
     },
     RLBotConnection,
 };
@@ -29,7 +29,7 @@ fn main() {
     let mut player_configurations = (0..bots_to_add)
         .into_iter()
         .map(|i| PlayerConfiguration {
-            variety: PlayerClass::RLBot(Box::new(RLBot {})),
+            variety: PlayerClass::CustomBot(Box::new(CustomBot {})),
             name: format!("BOT{i}"),
             team: i % 2,
             root_dir: "".into(),

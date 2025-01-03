@@ -21,7 +21,7 @@ fn main() {
         .send_packet(ConnectionSettings {
             wants_ball_predictions: true,
             wants_comms: true,
-            close_after_match: true,
+            close_between_matches: true,
             agent_id,
         })
         .unwrap();
