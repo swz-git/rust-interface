@@ -61,12 +61,9 @@ impl Agent for AtbaAgent {
 fn main() {
     let RLBotEnvironment {
         server_addr,
-        mut agent_id,
+        agent_id,
     } = RLBotEnvironment::from_env();
-
-    if agent_id.is_empty() {
-        agent_id = "rlbot/rust-example-bot".into()
-    }
+    let agent_id = agent_id.unwrap_or("rlbot/rust-example/atba_agent".into());
 
     println!("Connecting");
 

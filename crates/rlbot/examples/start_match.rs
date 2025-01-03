@@ -65,6 +65,7 @@ fn main() {
         })),
         existing_match_behavior: ExistingMatchBehavior::Restart,
         enable_rendering: true,
+        enable_state_setting: true,
         ..Default::default()
     };
 

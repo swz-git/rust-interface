@@ -1,8 +1,10 @@
 use std::env;
 
 pub struct RLBotEnvironment {
+    /// Will fallback to 126.0.0.1:23234
     pub server_addr: String,
-    pub agent_id: String,
+    /// No fallback and therefor Option<>
+    pub agent_id: Option<String>,
 }
 
 impl RLBotEnvironment {
@@ -12,7 +14,12 @@ impl RLBotEnvironment {
             "127.0.0.1:{}",
             env::var("RLBOT_SERVER_PORT").unwrap_or("23234".into())
         ));
-        let agent_id = env::var("RLBOT_AGENT_ID").unwrap_or("".into());
+        let mut agent_id = env::var("RLBOT_AGENT_ID").ok();
+
+        agent_id = match agent_id {
+            Some(s) if s.len() == 0 => None,
+            _ => agent_id,
+        };
 
         Self {
             server_addr,
