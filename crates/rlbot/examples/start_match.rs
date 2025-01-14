@@ -54,7 +54,7 @@ fn main() {
         hivemind: Default::default(),
     });
 
-    let match_settings = MatchConfiguration {
+    let match_configuration = MatchConfiguration {
         player_configurations,
         game_mode: GameMode::Soccer,
         game_map_upk: "UtopiaStadium_P".into(),
@@ -70,6 +70,6 @@ fn main() {
     };
 
     rlbot_connection
-        .send_packet(match_settings)
+        .send_packet(match_configuration)
         .expect("start_match");
 }

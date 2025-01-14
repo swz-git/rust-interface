@@ -13,9 +13,9 @@ pub trait Agent {
     fn new(controllable_info: ControllableInfo) -> Self;
     fn tick(&mut self, game_packet: &GamePacket, packet_queue: &mut PacketQueue) -> ();
     fn on_field_info(&mut self, field_info: &FieldInfo, packet_queue: &mut PacketQueue) -> () {}
-    fn on_match_settings(
+    fn on_match_configuration(
         &mut self,
-        match_settings: &MatchConfiguration,
+        match_configuration: &MatchConfiguration,
         packet_queue: &mut PacketQueue,
     ) -> () {
     }
@@ -107,7 +107,7 @@ pub fn run_agents<T: Agent>(
                             Packet::GamePacket(x) => bot.tick(x, &mut outgoing_queue_local),
                             Packet::FieldInfo(x) => bot.on_field_info(x, &mut outgoing_queue_local),
                             Packet::MatchConfiguration(x) => {
-                                bot.on_match_settings(x, &mut outgoing_queue_local)
+                                bot.on_match_configuration(x, &mut outgoing_queue_local)
                             }
                             Packet::MatchComm(x) => bot.on_match_comm(x, &mut outgoing_queue_local),
                             Packet::BallPrediction(x) => {
