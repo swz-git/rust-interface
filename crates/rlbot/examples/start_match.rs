@@ -2,8 +2,8 @@ use std::env::args;
 
 use rlbot::{
     flat::{
-        CustomBot, ExistingMatchBehavior, GameMode, Human, MatchLength, MatchSettings,
-        MutatorSettings, PlayerClass, PlayerConfiguration,
+        CustomBot, ExistingMatchBehavior, GameMode, Human, MatchConfiguration, MutatorSettings,
+        PlayerClass, PlayerConfiguration, SeriesLengthMutator,
     },
     RLBotConnection,
 };
@@ -54,13 +54,13 @@ fn main() {
         hivemind: Default::default(),
     });
 
-    let match_settings = MatchSettings {
+    let match_settings = MatchConfiguration {
         player_configurations,
         game_mode: GameMode::Soccer,
         game_map_upk: "UtopiaStadium_P".into(),
         // mutatorSettings CANNOT be None, otherwise RLBot will crash (this is true for v4, maybe not v5)
-        mutator_settings: Some(Box::new(MutatorSettings {
-            match_length: MatchLength::Unlimited,
+        mutators: Some(Box::new(MutatorSettings {
+            series_length: SeriesLengthMutator::Unlimited,
             ..Default::default()
         })),
         existing_match_behavior: ExistingMatchBehavior::Restart,

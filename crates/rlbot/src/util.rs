@@ -18,7 +18,7 @@ impl RLBotEnvironment {
         let mut agent_id = env::var("RLBOT_AGENT_ID").ok();
 
         agent_id = match agent_id {
-            Some(s) if s.len() == 0 => None,
+            Some(s) if s.is_empty() => None,
             _ => agent_id,
         };
 

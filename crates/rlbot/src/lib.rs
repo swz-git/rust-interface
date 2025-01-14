@@ -42,7 +42,7 @@ pub enum Packet {
     GamePacket(GamePacket),
     FieldInfo(FieldInfo),
     StartCommand(StartCommand),
-    MatchSettings(MatchSettings),
+    MatchConfiguration(MatchConfiguration),
     PlayerInput(PlayerInput),
     DesiredGameState(DesiredGameState),
     RenderGroup(RenderGroup),
@@ -73,7 +73,7 @@ gen_impl_from_flat_packet!(
     GamePacket,
     FieldInfo,
     StartCommand,
-    MatchSettings,
+    MatchConfiguration,
     PlayerInput,
     DesiredGameState,
     RenderGroup,
@@ -94,7 +94,7 @@ impl Packet {
             Packet::GamePacket(_) => 1,
             Packet::FieldInfo(_) => 2,
             Packet::StartCommand(_) => 3,
-            Packet::MatchSettings(_) => 4,
+            Packet::MatchConfiguration(_) => 4,
             Packet::PlayerInput(_) => 5,
             Packet::DesiredGameState(_) => 6,
             Packet::RenderGroup(_) => 7,
@@ -123,7 +123,7 @@ impl Packet {
             Packet::GamePacket(x) => p!(x),
             Packet::FieldInfo(x) => p!(x),
             Packet::StartCommand(x) => p!(x),
-            Packet::MatchSettings(x) => p!(x),
+            Packet::MatchConfiguration(x) => p!(x),
             Packet::PlayerInput(x) => p!(x),
             Packet::DesiredGameState(x) => p!(x),
             Packet::RenderGroup(x) => p!(x),
@@ -151,7 +151,7 @@ impl Packet {
             1 => Ok(Self::GamePacket(p!(GamePacketRef))),
             2 => Ok(Self::FieldInfo(p!(FieldInfoRef))),
             3 => Ok(Self::StartCommand(p!(StartCommandRef))),
-            4 => Ok(Self::MatchSettings(p!(MatchSettingsRef))),
+            4 => Ok(Self::MatchConfiguration(p!(MatchConfigurationRef))),
             5 => Ok(Self::PlayerInput(p!(PlayerInputRef))),
             6 => Ok(Self::DesiredGameState(p!(DesiredGameStateRef))),
             7 => Ok(Self::RenderGroup(p!(RenderGroupRef))),
@@ -188,7 +188,7 @@ impl RLBotConnection {
         Ok(())
     }
 
-    pub fn send_packet<P: Into<Packet>>(&mut self, packet: P) -> Result<(), RLBotError> {
+    pub fn send_packet(&mut self, packet: impl Into<Packet>) -> Result<(), RLBotError> {
         self.send_packet_enum(packet.into())
     }
 

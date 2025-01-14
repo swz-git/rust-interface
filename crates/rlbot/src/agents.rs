@@ -15,7 +15,7 @@ pub trait Agent {
     fn on_field_info(&mut self, field_info: &FieldInfo, packet_queue: &mut PacketQueue) -> () {}
     fn on_match_settings(
         &mut self,
-        match_settings: &MatchSettings,
+        match_settings: &MatchConfiguration,
         packet_queue: &mut PacketQueue,
     ) -> () {
     }
@@ -106,7 +106,7 @@ pub fn run_agents<T: Agent>(
                             Packet::None => break,
                             Packet::GamePacket(x) => bot.tick(x, &mut outgoing_queue_local),
                             Packet::FieldInfo(x) => bot.on_field_info(x, &mut outgoing_queue_local),
-                            Packet::MatchSettings(x) => {
+                            Packet::MatchConfiguration(x) => {
                                 bot.on_match_settings(x, &mut outgoing_queue_local)
                             }
                             Packet::MatchComm(x) => bot.on_match_comm(x, &mut outgoing_queue_local),
@@ -156,9 +156,9 @@ pub fn run_agents<T: Agent>(
             }
         }
 
-        for i in 0..threads.len() {
+        for reserved_packet_spot in to_send.iter_mut().take(threads.len()) {
             if let Ok(messages) = outgoing_recver.recv() {
-                to_send[i as usize] = messages;
+                *reserved_packet_spot = messages;
             } else {
                 break 'main_loop;
             }
@@ -179,14 +179,13 @@ fn write_multiple_packets(
 ) -> Result<(), RLBotError> {
     let to_write = packets
         // convert Packet to Vec<u8> that RLBotServer can understand
-        .map(|x| {
+        .flat_map(|x| {
             let data_type_bin = x.data_type().to_be_bytes().to_vec();
             let payload = x.build(&mut connection.builder);
             let data_len_bin = (payload.len() as u16).to_be_bytes().to_vec();
 
             [data_type_bin, data_len_bin, payload].concat()
         })
-        .flatten()
         .collect::<Vec<_>>();
 
     connection.stream.write_all(&to_write)?;
