@@ -3,7 +3,7 @@ use std::env::args;
 use rlbot::{
     flat::{
         CustomBot, ExistingMatchBehavior, GameMode, Human, MatchConfiguration, MutatorSettings,
-        PlayerClass, PlayerConfiguration, SeriesLengthMutator,
+        PlayerClass, PlayerConfiguration,
     },
     RLBotConnection,
 };
@@ -60,7 +60,7 @@ fn main() {
         game_map_upk: "UtopiaStadium_P".into(),
         // mutatorSettings CANNOT be None, otherwise RLBot will crash (this is true for v4, maybe not v5)
         mutators: Some(Box::new(MutatorSettings {
-            series_length: SeriesLengthMutator::Unlimited,
+            match_length: rlbot::flat::MatchLengthMutator::Unlimited,
             ..Default::default()
         })),
         existing_match_behavior: ExistingMatchBehavior::Restart,
