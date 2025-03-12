@@ -2,7 +2,7 @@ use std::{f32::consts::PI, sync::Arc};
 
 use rlbot::{
     RLBotConnection,
-    agents::{Agent, PacketQueue, run_agents},
+    agents::{Agent, PacketQueue, run_agents_hybrid},
     flat::{ControllableInfo, ControllerState, FieldInfo, MatchConfiguration, PlayerInput},
     util::RLBotEnvironment,
 };
@@ -105,9 +105,16 @@ fn main() {
     // If the hivemind field is set to true, one instance of your bot will handle
     // all of the bots in a team.
 
-    // Blocking
-    run_agents::<AtbaAgent>(agent_id.clone(), true, true, rlbot_connection)
-        .expect("run_agents crashed");
+    let n_agents_per_thread = 16;
+    // Blocking. runs N agents per thread
+    run_agents_hybrid::<AtbaAgent>(
+        agent_id.clone(),
+        true,
+        true,
+        rlbot_connection,
+        n_agents_per_thread,
+    )
+    .expect("run_agents crashed");
 
     println!("Agent(s) with agent_id `{agent_id}` exited nicely");
 }
