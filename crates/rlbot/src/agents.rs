@@ -53,7 +53,7 @@ impl PacketQueue {
         self.internal_queue.push(packet.into());
     }
 
-    fn empty(&mut self) -> Vec<Packet> {
+    pub(crate) fn empty(&mut self) -> Vec<Packet> {
         mem::take(&mut self.internal_queue)
     }
 }
@@ -363,7 +363,7 @@ pub fn run_agents_sync<T: Agent>(
     Ok(())
 }
 
-fn write_multiple_packets(
+pub(crate) fn write_multiple_packets(
     connection: &mut RLBotConnection,
     packets: impl Iterator<Item = Packet>,
 ) -> Result<(), RLBotError> {

@@ -1,0 +1,13 @@
+[settings]
+name = "Rust Example Script"
+agent_id = "rlbot/rust-example/example_script"
+run_command = "..\\..\\..\\..\\target\\release\\examples\\example_script.exe"
+run_command_linux = "../../../../target/release/examples/example_script"
+
+[details]
+# description = ""
+# fun_fact = ""
+# source_link = "https://github.com/swz-git/rust-interface"
+developer = ""
+language = "rust"
+# logo_file = "logo.png"
