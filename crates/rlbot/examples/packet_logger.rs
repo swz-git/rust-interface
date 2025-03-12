@@ -1,11 +1,11 @@
-use rlbot::{flat::ConnectionSettings, util::RLBotEnvironment, RLBotConnection};
+use rlbot::{RLBotConnection, flat::ConnectionSettings, util::RLBotEnvironment};
 
 fn main() {
     let RLBotEnvironment {
         server_addr,
         agent_id,
     } = RLBotEnvironment::from_env();
-    let agent_id = agent_id.unwrap_or("rlbot/rust-packet-logger".into());
+    let agent_id = agent_id.unwrap_or_else(|| "rlbot/rust-packet-logger".into());
 
     let mut rlbot_connection = RLBotConnection::new(&server_addr).expect("connection");
 
@@ -22,6 +22,6 @@ fn main() {
 
     loop {
         let packet = rlbot_connection.recv_packet().unwrap();
-        println!("{packet:?}")
+        println!("{packet:?}");
     }
 }

@@ -1,4 +1,4 @@
-use rlbot::{flat::StopCommand, RLBotConnection};
+use rlbot::{RLBotConnection, flat::StopCommand};
 
 fn main() {
     println!("Connecting");

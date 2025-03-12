@@ -35,8 +35,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let include_all_str = fbs_file_names
         .iter()
         .map(|x| format!("include \"{x}\";"))
-        .collect::<Vec<_>>()
-        .join("");
+        .collect::<String>();
 
     let temp_file_paths: Vec<PathBuf> = fbs_file_names
         .iter()
@@ -75,10 +74,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     // flatbuffers-schemaTEMP looks ugly, fix it
     res = res.replace("flatbuffers-schemaTEMP", "rlbot/flatbuffers-schema");
 
+    let now = Instant::now();
     let time_taken = format!(
         "// build.rs took {:?} of which planus took {:?}\n",
-        Instant::now().duration_since(start_time),
-        Instant::now().duration_since(start_time_planus)
+        now.duration_since(start_time),
+        now.duration_since(start_time_planus)
     );
 
     fs::File::create(OUT_FILE)?.write_all(&[time_taken.as_bytes(), res.as_bytes()].concat())?;

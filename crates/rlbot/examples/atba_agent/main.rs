@@ -1,20 +1,55 @@
-use std::f32::consts::PI;
+use std::{f32::consts::PI, sync::Arc};
 
 use rlbot::{
-    agents::{run_agents, Agent, PacketQueue},
-    flat::{ConnectionSettings, ControllableInfo, ControllerState, PlayerInput},
-    util::RLBotEnvironment,
     RLBotConnection,
+    agents::{Agent, PacketQueue, run_agents},
+    flat::{
+        ConnectionSettings, ControllableInfo, ControllerState, FieldInfo, MatchConfiguration,
+        PlayerInput,
+    },
+    util::RLBotEnvironment,
 };
 
+#[allow(dead_code)]
 struct AtbaAgent {
-    controllable_info: ControllableInfo,
+    index: u32,
+    spawn_id: i32,
+    team: u32,
+    name: String,
+    match_config: Arc<MatchConfiguration>,
+    field_info: Arc<FieldInfo>,
 }
 
 impl Agent for AtbaAgent {
-    fn new(controllable_info: ControllableInfo) -> Self {
-        Self { controllable_info }
+    fn new(
+        team: u32,
+        controllable_info: ControllableInfo,
+        match_config: Arc<rlbot::flat::MatchConfiguration>,
+        field_info: Arc<rlbot::flat::FieldInfo>,
+        _packet_queue: &mut PacketQueue,
+    ) -> Self {
+        let name = match_config
+            .player_configurations
+            .iter()
+            .find_map(|player| {
+                if player.spawn_id == controllable_info.spawn_id {
+                    Some(player.name.clone())
+                } else {
+                    None
+                }
+            })
+            .unwrap();
+
+        Self {
+            index: controllable_info.index,
+            spawn_id: controllable_info.spawn_id,
+            team,
+            name,
+            match_config,
+            field_info,
+        }
     }
+
     fn tick(&mut self, game_packet: &rlbot::flat::GamePacket, packet_queue: &mut PacketQueue) {
         let Some(ball) = game_packet.balls.first() else {
             // If theres no ball, theres nothing to chase, don't do anything
@@ -22,16 +57,12 @@ impl Agent for AtbaAgent {
         };
 
         // We're not in the gtp, skip this tick
-        if game_packet.players.len() <= self.controllable_info.index as usize {
+        if game_packet.players.len() <= self.index as usize {
             return;
         }
 
         let target = &ball.physics;
-        let car = game_packet
-            .players
-            .get(self.controllable_info.index as usize)
-            .unwrap()
-            .physics;
+        let car = game_packet.players[self.index as usize].physics;
 
         let bot_to_target_angle = f32::atan2(
             target.location.y - car.location.y,
@@ -53,17 +84,18 @@ impl Agent for AtbaAgent {
         controller.throttle = 1.;
 
         packet_queue.push(PlayerInput {
-            player_index: self.controllable_info.index,
+            player_index: self.index,
             controller_state: controller,
         });
     }
 }
+
 fn main() {
     let RLBotEnvironment {
         server_addr,
         agent_id,
     } = RLBotEnvironment::from_env();
-    let agent_id = agent_id.unwrap_or("rlbot/rust-example/atba_agent".into());
+    let agent_id = agent_id.unwrap_or_else(|| "rlbot/rust-example/atba_agent".into());
 
     println!("Connecting");
 
@@ -80,13 +112,13 @@ fn main() {
     run_agents::<AtbaAgent>(
         ConnectionSettings {
             agent_id: agent_id.clone(),
-            wants_ball_predictions: true,
-            wants_comms: true,
+            wants_ball_predictions: false,
+            wants_comms: false,
             close_between_matches: true,
         },
         rlbot_connection,
     )
     .expect("run_agents crashed");
 
-    println!("Agent(s) with agent_id `{agent_id}` exited nicely")
+    println!("Agent(s) with agent_id `{agent_id}` exited nicely");
 }

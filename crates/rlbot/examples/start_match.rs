@@ -1,11 +1,11 @@
 use std::env::args;
 
 use rlbot::{
+    RLBotConnection,
     flat::{
         CustomBot, ExistingMatchBehavior, GameMode, Human, MatchConfiguration, MutatorSettings,
         PlayerClass, PlayerConfiguration,
     },
-    RLBotConnection,
 };
 
 fn main() {
@@ -15,25 +15,21 @@ fn main() {
 
     println!("Starting match");
 
+    let mut args = args();
+
     // Usage: ./start_match 5 your-agent-id
-    let bots_to_add = args()
-        .skip(1)
+    let bots_to_add = args.nth(1).map_or(1, |x| x.parse().unwrap());
+    let agent_id = args
         .next()
-        .map(|x| x.parse().unwrap())
-        .unwrap_or(1);
-    let agent_id = args()
-        .skip(2)
-        .next()
-        .unwrap_or("rlbot/rust-example-bot".into());
+        .unwrap_or_else(|| "rlbot/rust-example-bot".into());
 
     let mut player_configurations = (0..bots_to_add)
-        .into_iter()
         .map(|i| PlayerConfiguration {
             variety: PlayerClass::CustomBot(Box::new(CustomBot {})),
             name: format!("BOT{i}"),
             team: i % 2,
-            root_dir: "".into(),
-            run_command: "".into(),
+            root_dir: String::default(),
+            run_command: String::default(),
             loadout: None,
             spawn_id: 0, // RLBotServer will set this
             agent_id: agent_id.clone(),
@@ -44,13 +40,13 @@ fn main() {
     // Also add a human
     player_configurations.push(PlayerConfiguration {
         variety: PlayerClass::Human(Box::new(Human {})),
-        name: "".to_owned(),
+        name: String::default(),
         team: 1,
         loadout: None,
         spawn_id: Default::default(),
-        root_dir: Default::default(),
-        agent_id: Default::default(),
-        run_command: Default::default(),
+        root_dir: String::default(),
+        agent_id: String::default(),
+        run_command: String::default(),
         hivemind: Default::default(),
     });
 

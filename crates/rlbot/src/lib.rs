@@ -88,97 +88,111 @@ gen_impl_from_flat_packet!(
 );
 
 impl Packet {
+    #[must_use]
     pub const fn data_type(&self) -> u16 {
         match *self {
-            Packet::None => 0,
-            Packet::GamePacket(_) => 1,
-            Packet::FieldInfo(_) => 2,
-            Packet::StartCommand(_) => 3,
-            Packet::MatchConfiguration(_) => 4,
-            Packet::PlayerInput(_) => 5,
-            Packet::DesiredGameState(_) => 6,
-            Packet::RenderGroup(_) => 7,
-            Packet::RemoveRenderGroup(_) => 8,
-            Packet::MatchComm(_) => 9,
-            Packet::BallPrediction(_) => 10,
-            Packet::ConnectionSettings(_) => 11,
-            Packet::StopCommand(_) => 12,
-            Packet::SetLoadout(_) => 13,
-            Packet::InitComplete => 14,
-            Packet::ControllableTeamInfo(_) => 15,
+            Self::None => 0,
+            Self::GamePacket(_) => 1,
+            Self::FieldInfo(_) => 2,
+            Self::StartCommand(_) => 3,
+            Self::MatchConfiguration(_) => 4,
+            Self::PlayerInput(_) => 5,
+            Self::DesiredGameState(_) => 6,
+            Self::RenderGroup(_) => 7,
+            Self::RemoveRenderGroup(_) => 8,
+            Self::MatchComm(_) => 9,
+            Self::BallPrediction(_) => 10,
+            Self::ConnectionSettings(_) => 11,
+            Self::StopCommand(_) => 12,
+            Self::SetLoadout(_) => 13,
+            Self::InitComplete => 14,
+            Self::ControllableTeamInfo(_) => 15,
         }
     }
 
     pub fn build(self, builder: &mut planus::Builder) -> Vec<u8> {
         // TODO: make this mess nicer
         macro_rules! p {
-            ($x:ident) => {{
-                builder.clear();
-                builder.finish($x, None).to_vec()
-            }};
+            ($($x:ident),+; $($y:ident),+) => {
+                match self {
+                    $(
+                        Self::$x => Vec::new(),
+                    )+
+                    $(
+                        Self::$y(x) => {
+                            builder.clear();
+                            builder.finish(x, None).to_vec()
+                        },
+                    )+
+                }
+            };
         }
 
-        match self {
-            Packet::None => Vec::new(),
-            Packet::GamePacket(x) => p!(x),
-            Packet::FieldInfo(x) => p!(x),
-            Packet::StartCommand(x) => p!(x),
-            Packet::MatchConfiguration(x) => p!(x),
-            Packet::PlayerInput(x) => p!(x),
-            Packet::DesiredGameState(x) => p!(x),
-            Packet::RenderGroup(x) => p!(x),
-            Packet::RemoveRenderGroup(x) => p!(x),
-            Packet::MatchComm(x) => p!(x),
-            Packet::BallPrediction(x) => p!(x),
-            Packet::ConnectionSettings(x) => p!(x),
-            Packet::StopCommand(x) => p!(x),
-            Packet::SetLoadout(x) => p!(x),
-            Packet::InitComplete => Vec::new(),
-            Packet::ControllableTeamInfo(x) => p!(x),
-        }
+        p!(
+            None, InitComplete;
+            GamePacket, FieldInfo, StartCommand, MatchConfiguration, PlayerInput,
+            DesiredGameState, RenderGroup, RemoveRenderGroup, MatchComm, BallPrediction,
+            ConnectionSettings, StopCommand, SetLoadout, ControllableTeamInfo
+        )
     }
 
     pub fn from_payload(data_type: u16, payload: &[u8]) -> Result<Self, PacketParseError> {
         // TODO: make this mess nicer
         macro_rules! p {
-            ($x:ident) => {
-                $x::read_as_root(payload)?.try_into().unwrap()
+            ($e:ident) => {
+                Ok(Self::$e)
             };
+            ($e:ident, $x:ident) => {
+                Ok(Self::$e($x::read_as_root(payload)?.try_into().unwrap()))
+            };
+            ($($n:literal, $($x:ident),+);+) => {
+                match data_type {
+                    $(
+                        $n => p!(
+                            $($x),+
+                        ),
+                    )+
+                    _ => Err(PacketParseError::InvalidDataType(data_type)),
+                }
+            };
+
         }
 
-        match data_type {
-            0 => Ok(Self::None),
-            1 => Ok(Self::GamePacket(p!(GamePacketRef))),
-            2 => Ok(Self::FieldInfo(p!(FieldInfoRef))),
-            3 => Ok(Self::StartCommand(p!(StartCommandRef))),
-            4 => Ok(Self::MatchConfiguration(p!(MatchConfigurationRef))),
-            5 => Ok(Self::PlayerInput(p!(PlayerInputRef))),
-            6 => Ok(Self::DesiredGameState(p!(DesiredGameStateRef))),
-            7 => Ok(Self::RenderGroup(p!(RenderGroupRef))),
-            8 => Ok(Self::RemoveRenderGroup(p!(RemoveRenderGroupRef))),
-            9 => Ok(Self::MatchComm(p!(MatchCommRef))),
-            10 => Ok(Self::BallPrediction(p!(BallPredictionRef))),
-            11 => Ok(Self::ConnectionSettings(p!(ConnectionSettingsRef))),
-            12 => Ok(Self::StopCommand(p!(StopCommandRef))),
-            13 => Ok(Self::SetLoadout(p!(SetLoadoutRef))),
-            14 => Ok(Self::InitComplete),
-            15 => Ok(Self::ControllableTeamInfo(p!(ControllableTeamInfoRef))),
-            _ => Err(PacketParseError::InvalidDataType(data_type)),
-        }
+        p!(
+            0, None;
+            1, GamePacket, GamePacketRef;
+            2, FieldInfo, FieldInfoRef;
+            3, StartCommand, StartCommandRef;
+            4, MatchConfiguration, MatchConfigurationRef;
+            5, PlayerInput, PlayerInputRef;
+            6, DesiredGameState, DesiredGameStateRef;
+            7, RenderGroup, RenderGroupRef;
+            8, RemoveRenderGroup, RemoveRenderGroupRef;
+            9, MatchComm, MatchCommRef;
+            10, BallPrediction, BallPredictionRef;
+            11, ConnectionSettings, ConnectionSettingsRef;
+            12, StopCommand, StopCommandRef;
+            13, SetLoadout, SetLoadoutRef;
+            14, InitComplete;
+            15, ControllableTeamInfo, ControllableTeamInfoRef
+        )
     }
 }
 
 pub struct RLBotConnection {
     stream: TcpStream,
     builder: planus::Builder,
-    recv_buf: [u8; u16::MAX as usize],
+    recv_buf: Vec<u8>,
 }
 
 impl RLBotConnection {
     fn send_packet_enum(&mut self, packet: Packet) -> Result<(), RLBotError> {
         let data_type_bin = packet.data_type().to_be_bytes().to_vec();
         let payload = packet.build(&mut self.builder);
-        let data_len_bin = (payload.len() as u16).to_be_bytes().to_vec();
+        let data_len_bin = u16::try_from(payload.len())
+            .expect("Payload can't be greater than a u16")
+            .to_be_bytes()
+            .to_vec();
 
         // Join so we make sure everything gets written in the right order
         let joined = [data_type_bin, data_len_bin, payload].concat();
@@ -200,24 +214,47 @@ impl RLBotConnection {
         let data_type = u16::from_be_bytes([buf[0], buf[1]]);
         let data_len = u16::from_be_bytes([buf[2], buf[3]]);
 
-        let buf = &mut self.recv_buf[0..data_len as usize];
+        self.recv_buf.resize(data_len as usize, 0);
+        self.stream.read_exact(&mut self.recv_buf)?;
 
-        self.stream.read_exact(buf)?;
-
-        let packet = Packet::from_payload(data_type, buf)?;
+        let packet = Packet::from_payload(data_type, &self.recv_buf)?;
 
         Ok(packet)
     }
 
-    pub fn new(addr: &str) -> Result<RLBotConnection, RLBotError> {
+    pub fn new(addr: &str) -> Result<Self, RLBotError> {
         let stream = TcpStream::connect(SocketAddr::from_str(addr)?)?;
 
         stream.set_nodelay(true)?;
 
-        Ok(RLBotConnection {
+        Ok(Self {
             stream,
             builder: planus::Builder::with_capacity(1024),
-            recv_buf: [0u8; u16::MAX as usize],
+            recv_buf: Vec::with_capacity(u16::MAX as usize),
         })
+    }
+
+    pub fn get_starting_info(
+        &mut self,
+    ) -> Result<(ControllableTeamInfo, MatchConfiguration, FieldInfo), RLBotError> {
+        let mut cti = None;
+        let mut match_config = None;
+        let mut field_info = None;
+
+        loop {
+            let packet = self.recv_packet()?;
+            match packet {
+                Packet::ControllableTeamInfo(x) => cti = Some(x),
+                Packet::MatchConfiguration(x) => match_config = Some(x),
+                Packet::FieldInfo(x) => field_info = Some(x),
+                _ => {}
+            }
+
+            if cti.is_some() && match_config.is_some() && field_info.is_some() {
+                break;
+            }
+        }
+
+        Ok((cti.unwrap(), match_config.unwrap(), field_info.unwrap()))
     }
 }

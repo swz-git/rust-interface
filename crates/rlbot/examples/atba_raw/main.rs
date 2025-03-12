@@ -1,9 +1,9 @@
 use std::f32::consts::PI;
 
 use rlbot::{
+    Packet, RLBotConnection,
     flat::{ConnectionSettings, ControllerState, PlayerInput},
     util::RLBotEnvironment,
-    Packet, RLBotConnection,
 };
 
 fn main() {
@@ -11,7 +11,7 @@ fn main() {
         server_addr,
         agent_id,
     } = RLBotEnvironment::from_env();
-    let agent_id = agent_id.unwrap_or("rlbot/rust-example/atba_raw".into());
+    let agent_id = agent_id.unwrap_or_else(|| "rlbot/rust-example/atba_raw".into());
 
     let mut rlbot_connection = RLBotConnection::new(&server_addr).expect("connection");
 
@@ -33,15 +33,15 @@ fn main() {
         let packet = rlbot_connection.recv_packet().unwrap();
         if let Packet::ControllableTeamInfo(x) = packet {
             break x;
-        } else {
-            packets_to_process.push(packet);
-            continue;
         }
+
+        packets_to_process.push(packet);
     };
 
-    if controllable_team_info.controllables.len() != 1 {
-        panic!("The raw atba example code does not support hiveminds, please disable the hivemind field in bot.toml")
-    }
+    assert!(
+        controllable_team_info.controllables.len() == 1,
+        "The raw atba example code does not support hiveminds, please disable the hivemind field in bot.toml"
+    );
 
     let controllable_info = controllable_team_info
         .controllables
@@ -53,7 +53,7 @@ fn main() {
     loop {
         let Packet::GamePacket(game_packet) = packets_to_process
             .pop()
-            .unwrap_or(rlbot_connection.recv_packet().unwrap())
+            .unwrap_or_else(|| rlbot_connection.recv_packet().unwrap())
         else {
             continue;
         };
