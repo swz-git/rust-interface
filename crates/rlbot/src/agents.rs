@@ -37,13 +37,17 @@ pub struct PacketQueue {
 
 impl Default for PacketQueue {
     fn default() -> Self {
-        Self {
-            internal_queue: Vec::with_capacity(16),
-        }
+        Self::new(16)
     }
 }
 
 impl PacketQueue {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            internal_queue: Vec::with_capacity(capacity),
+        }
+    }
+
     pub fn push(&mut self, packet: impl Into<Packet>) {
         self.internal_queue.push(packet.into());
     }
@@ -132,10 +136,9 @@ pub fn run_agents<T: Agent>(
 
     // Main loop, broadcast packet to all of the bots, then wait for all of the outgoing vecs
     let mut to_send: Vec<Vec<Packet>> = vec![Vec::new(); num_agents];
+    let mut ball_prediction = None;
+    let mut game_packet = None;
     'main_loop: loop {
-        let mut ball_prediction = None;
-        let mut game_packet = None;
-
         connection.set_nonblocking(true)?;
         while let Ok(Some(packet)) = connection.try_recv_packet() {
             let packet = Arc::new(packet);
@@ -164,35 +167,33 @@ pub fn run_agents<T: Agent>(
         }
         connection.set_nonblocking(false)?;
 
-        if ball_prediction.is_some() || game_packet.is_some() {
-            for (incoming_sender, _) in &threads {
-                if let Some(ball_prediction) = &ball_prediction {
+        if let Some(game_packet) = game_packet.take() {
+            if let Some(ball_prediction) = ball_prediction.take() {
+                for (incoming_sender, _) in &threads {
                     if incoming_sender.send(ball_prediction.clone()).is_err() {
                         return Err(AgentError::AgentPanic);
                     }
                 }
+            }
 
-                if let Some(game_packet) = &game_packet {
-                    if incoming_sender.send(game_packet.clone()).is_err() {
-                        return Err(AgentError::AgentPanic);
-                    }
+            for (incoming_sender, _) in &threads {
+                if incoming_sender.send(game_packet.clone()).is_err() {
+                    return Err(AgentError::AgentPanic);
                 }
             }
-        }
 
-        if game_packet.is_none() {
-            continue;
-        }
+            ball_prediction = None;
 
-        for reserved_packet_spot in &mut to_send {
-            if let Ok(messages) = outgoing_recver.recv() {
-                *reserved_packet_spot = messages;
-            } else {
-                break 'main_loop;
+            for reserved_packet_spot in &mut to_send {
+                if let Ok(messages) = outgoing_recver.recv() {
+                    *reserved_packet_spot = messages;
+                } else {
+                    break 'main_loop;
+                }
             }
-        }
 
-        write_multiple_packets(&mut connection, to_send.iter_mut().flat_map(mem::take))?;
+            write_multiple_packets(&mut connection, to_send.iter_mut().flat_map(mem::take))?;
+        }
     }
 
     for (_, handle) in threads {
@@ -247,6 +248,94 @@ fn run_agent<T: Agent>(
 
     drop(incoming_recver);
     drop(outgoing_sender);
+}
+
+/// Run multiple agents on the current thread. They share a connection.
+/// Ok(()) means a successful exit; a None packet was received.
+///
+/// # Errors
+///
+/// Returns an error if an agent panics or if there is an error with the connection.
+pub fn run_agents_sync<T: Agent>(
+    agent_id: String,
+    wants_ball_predictions: bool,
+    wants_comms: bool,
+    mut connection: RLBotConnection,
+) -> Result<(), AgentError> {
+    connection.send_packet(ConnectionSettings {
+        agent_id,
+        wants_ball_predictions,
+        wants_comms,
+        close_between_matches: true,
+    })?;
+
+    let StartingInfo {
+        controllable_team_info,
+        match_configuration,
+        field_info,
+    } = connection.get_starting_info()?;
+
+    if controllable_team_info.controllables.is_empty() {
+        // run no bots? no problem, done
+        return Ok(());
+    }
+
+    let match_configuration = Arc::new(match_configuration);
+    let field_info = Arc::new(field_info);
+
+    let num_agents = controllable_team_info.controllables.len();
+    let mut outgoing_queue = PacketQueue::new(num_agents * 2);
+    let mut agents: Vec<_> = controllable_team_info
+        .controllables
+        .into_iter()
+        .map(|controllable_info| {
+            T::new(
+                controllable_team_info.team,
+                controllable_info,
+                match_configuration.clone(),
+                field_info.clone(),
+                &mut outgoing_queue,
+            )
+        })
+        .collect();
+
+    connection.send_packet(Packet::InitComplete)?;
+
+    let mut ball_prediction = None;
+    let mut game_packet = None;
+    'main_loop: loop {
+        connection.set_nonblocking(true)?;
+        while let Ok(Some(packet)) = connection.try_recv_packet() {
+            match packet {
+                Packet::None => break 'main_loop,
+                Packet::MatchComm(match_comm) => {
+                    for agent in &mut agents {
+                        agent.on_match_comm(&match_comm, &mut outgoing_queue);
+                    }
+                }
+                Packet::BallPrediction(ball_pred) => ball_prediction = Some(ball_pred),
+                Packet::GamePacket(gp) => game_packet = Some(gp),
+                _ => panic!("Unexpected packet: {:?}", packet),
+            }
+        }
+        connection.set_nonblocking(false)?;
+
+        if let Some(game_packet) = game_packet.take() {
+            if let Some(ball_prediction) = ball_prediction.take() {
+                for agent in &mut agents {
+                    agent.on_ball_prediction(&ball_prediction);
+                }
+            }
+
+            for agent in &mut agents {
+                agent.tick(&game_packet, &mut outgoing_queue);
+            }
+
+            write_multiple_packets(&mut connection, outgoing_queue.empty().into_iter())?;
+        }
+    }
+
+    Ok(())
 }
 
 fn write_multiple_packets(
