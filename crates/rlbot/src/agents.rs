@@ -19,12 +19,7 @@ pub trait Agent {
     ) -> Self;
     fn tick(&mut self, game_packet: &GamePacket, packet_queue: &mut PacketQueue);
     fn on_match_comm(&mut self, match_comm: &MatchComm, packet_queue: &mut PacketQueue) {}
-    fn on_ball_prediction(
-        &mut self,
-        ball_prediction: &BallPrediction,
-        packet_queue: &mut PacketQueue,
-    ) {
-    }
+    fn on_ball_prediction(&mut self, ball_prediction: &BallPrediction) {}
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -202,7 +197,7 @@ fn run_agent<T: Agent>(
             Packet::GamePacket(x) => bot.tick(x, &mut outgoing_queue_local),
             Packet::MatchComm(x) => bot.on_match_comm(x, &mut outgoing_queue_local),
             Packet::BallPrediction(x) => {
-                bot.on_ball_prediction(x, &mut outgoing_queue_local);
+                bot.on_ball_prediction(x);
             }
             _ => unreachable!(), /* The rest of the packets are only client -> server */
         }
