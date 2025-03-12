@@ -3,10 +3,7 @@ use std::{f32::consts::PI, sync::Arc};
 use rlbot::{
     RLBotConnection,
     agents::{Agent, PacketQueue, run_agents},
-    flat::{
-        ConnectionSettings, ControllableInfo, ControllerState, FieldInfo, MatchConfiguration,
-        PlayerInput,
-    },
+    flat::{ControllableInfo, ControllerState, FieldInfo, MatchConfiguration, PlayerInput},
     util::RLBotEnvironment,
 };
 
@@ -109,16 +106,8 @@ fn main() {
     // all of the bots in a team.
 
     // Blocking
-    run_agents::<AtbaAgent>(
-        ConnectionSettings {
-            agent_id: agent_id.clone(),
-            wants_ball_predictions: false,
-            wants_comms: false,
-            close_between_matches: true,
-        },
-        rlbot_connection,
-    )
-    .expect("run_agents crashed");
+    run_agents::<AtbaAgent>(agent_id.clone(), true, true, rlbot_connection)
+        .expect("run_agents crashed");
 
     println!("Agent(s) with agent_id `{agent_id}` exited nicely");
 }

@@ -179,6 +179,12 @@ impl Packet {
     }
 }
 
+pub struct StartingInfo {
+    pub controllable_team_info: ControllableTeamInfo,
+    pub match_configuration: MatchConfiguration,
+    pub field_info: FieldInfo,
+}
+
 pub struct RLBotConnection {
     stream: TcpStream,
     builder: planus::Builder,
@@ -234,9 +240,7 @@ impl RLBotConnection {
         })
     }
 
-    pub fn get_starting_info(
-        &mut self,
-    ) -> Result<(ControllableTeamInfo, MatchConfiguration, FieldInfo), RLBotError> {
+    pub fn get_starting_info(&mut self) -> Result<StartingInfo, RLBotError> {
         let mut cti = None;
         let mut match_config = None;
         let mut field_info = None;
@@ -255,6 +259,10 @@ impl RLBotConnection {
             }
         }
 
-        Ok((cti.unwrap(), match_config.unwrap(), field_info.unwrap()))
+        Ok(StartingInfo {
+            controllable_team_info: cti.unwrap(),
+            match_configuration: match_config.unwrap(),
+            field_info: field_info.unwrap(),
+        })
     }
 }

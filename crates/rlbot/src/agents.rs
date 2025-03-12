@@ -6,7 +6,7 @@ use std::{
     vec,
 };
 
-use crate::{Packet, RLBotConnection, RLBotError, flat::*};
+use crate::{Packet, RLBotConnection, RLBotError, StartingInfo, flat::*};
 
 #[allow(unused_variables)]
 pub trait Agent {
@@ -69,28 +69,38 @@ impl PacketQueue {
 ///
 /// Panics if a thread can't be spawned for each agent.
 pub fn run_agents<T: Agent>(
-    connection_settings: ConnectionSettings,
+    agent_id: String,
+    wants_ball_predictions: bool,
+    wants_comms: bool,
     mut connection: RLBotConnection,
 ) -> Result<(), AgentError> {
-    connection.send_packet(connection_settings)?;
+    connection.send_packet(ConnectionSettings {
+        agent_id,
+        wants_ball_predictions,
+        wants_comms,
+        close_between_matches: true,
+    })?;
 
-    let (controllable_team_info, match_config, field_info) = connection.get_starting_info()?;
+    let StartingInfo {
+        controllable_team_info,
+        match_configuration,
+        field_info,
+    } = connection.get_starting_info()?;
 
     if controllable_team_info.controllables.is_empty() {
         // run no bots? no problem, done
         return Ok(());
     }
 
-    let match_config = Arc::new(match_config);
+    let match_config = Arc::new(match_configuration);
     let field_info = Arc::new(field_info);
 
     let num_agents = controllable_team_info.controllables.len();
     let mut threads = Vec::with_capacity(num_agents);
 
     let (outgoing_sender, outgoing_recver) = kanal::bounded::<Vec<Packet>>(num_agents);
-    for (i, controllable_info) in controllable_team_info.controllables.iter().enumerate() {
+    for (i, controllable_info) in controllable_team_info.controllables.into_iter().enumerate() {
         let (incoming_sender, incoming_recver) = kanal::bounded::<Arc<Packet>>(1);
-        let controllable_info = controllable_info.clone();
         let match_config = match_config.clone();
         let field_info = field_info.clone();
 
