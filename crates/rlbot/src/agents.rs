@@ -95,7 +95,7 @@ pub fn run_agents<T: Agent>(
 
     let (outgoing_sender, outgoing_recver) = kanal::bounded::<Vec<Packet>>(num_agents);
     for (i, controllable_info) in controllable_team_info.controllables.into_iter().enumerate() {
-        let (incoming_sender, incoming_recver) = kanal::bounded::<Arc<Packet>>(1);
+        let (incoming_sender, incoming_recver) = kanal::bounded::<Arc<Packet>>(16);
         let match_config = match_config.clone();
         let field_info = field_info.clone();
 
@@ -133,19 +133,55 @@ pub fn run_agents<T: Agent>(
     // Main loop, broadcast packet to all of the bots, then wait for all of the outgoing vecs
     let mut to_send: Vec<Vec<Packet>> = vec![Vec::new(); num_agents];
     'main_loop: loop {
-        let maybe_packet = if connection.stream.peek(&mut 0u16.to_be_bytes()).is_ok() {
-            Some(connection.recv_packet()?)
-        } else {
-            None
-        };
+        let mut ball_prediction = None;
+        let mut game_packet = None;
 
-        if let Some(packet) = maybe_packet {
-            let arc = Arc::new(packet);
+        connection.set_nonblocking(true)?;
+        while let Ok(Some(packet)) = connection.try_recv_packet() {
+            let packet = Arc::new(packet);
+
+            match &*packet {
+                Packet::None => {
+                    for (incoming_sender, _) in &threads {
+                        if incoming_sender.send(packet.clone()).is_err() {
+                            return Err(AgentError::AgentPanic);
+                        }
+                    }
+
+                    break 'main_loop;
+                }
+                Packet::MatchComm(_) => {
+                    for (incoming_sender, _) in &threads {
+                        if incoming_sender.send(packet.clone()).is_err() {
+                            return Err(AgentError::AgentPanic);
+                        }
+                    }
+                }
+                Packet::BallPrediction(_) => ball_prediction = Some(packet),
+                Packet::GamePacket(_) => game_packet = Some(packet),
+                _ => panic!("Unexpected packet: {:?}", packet),
+            }
+        }
+        connection.set_nonblocking(false)?;
+
+        if ball_prediction.is_some() || game_packet.is_some() {
             for (incoming_sender, _) in &threads {
-                if incoming_sender.send(arc.clone()).is_err() {
-                    return Err(AgentError::AgentPanic);
+                if let Some(ball_prediction) = &ball_prediction {
+                    if incoming_sender.send(ball_prediction.clone()).is_err() {
+                        return Err(AgentError::AgentPanic);
+                    }
+                }
+
+                if let Some(game_packet) = &game_packet {
+                    if incoming_sender.send(game_packet.clone()).is_err() {
+                        return Err(AgentError::AgentPanic);
+                    }
                 }
             }
+        }
+
+        if game_packet.is_none() {
+            continue;
         }
 
         for reserved_packet_spot in &mut to_send {
@@ -202,9 +238,11 @@ fn run_agent<T: Agent>(
             _ => unreachable!(), /* The rest of the packets are only client -> server */
         }
 
-        outgoing_sender
-            .send(outgoing_queue_local.empty())
-            .expect("Couldn't send outgoing");
+        if matches!(*packet, Packet::GamePacket(_)) {
+            outgoing_sender
+                .send(outgoing_queue_local.empty())
+                .expect("Couldn't send outgoing");
+        }
     }
 
     drop(incoming_recver);

@@ -228,6 +228,31 @@ impl RLBotConnection {
         Ok(packet)
     }
 
+    pub fn try_recv_packet(&mut self) -> Result<Option<Packet>, RLBotError> {
+        let mut buf = [0u8; 4];
+
+        if self.stream.peek(&mut buf)? == 0 {
+            return Ok(None);
+        }
+
+        self.stream.read_exact(&mut buf)?;
+
+        let data_type = u16::from_be_bytes([buf[0], buf[1]]);
+        let data_len = u16::from_be_bytes([buf[2], buf[3]]);
+
+        self.recv_buf.resize(data_len as usize, 0);
+        self.stream.read_exact(&mut self.recv_buf)?;
+
+        let packet = Packet::from_payload(data_type, &self.recv_buf)?;
+
+        Ok(Some(packet))
+    }
+
+    pub fn set_nonblocking(&self, nonblocking: bool) -> Result<(), RLBotError> {
+        self.stream.set_nonblocking(nonblocking)?;
+        Ok(())
+    }
+
     pub fn new(addr: &str) -> Result<Self, RLBotError> {
         let stream = TcpStream::connect(SocketAddr::from_str(addr)?)?;
 
