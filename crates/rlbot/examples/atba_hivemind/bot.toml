@@ -1,0 +1,19 @@
+[settings]
+name = "Rust Example Bot (atba_hivemind)"
+agent_id = "rlbot/rust-example/atba_hivemind"
+# loadout_file = "loadout.toml"
+run_command = "..\\..\\..\\..\\target\\release\\examples\\atba_hivemind.exe"
+run_command_linux = "../../../../target/release/examples/atba_hivemind"
+hivemind = true
+
+[details]
+description = "Rust always-towards-ball-agent."
+# fun_fact = ""
+# source_link = "https://github.com/swz-git/rust-interface"
+developer = ""
+language = "rust"
+# logo_file = "logo.png"
+# ALL POSSIBLE TAGS: 1v1, teamplay, goalie, hoops, dropshot, snow-day, spike-rush, heatseaker, memebot
+# NOTE: Only add the goalie tag if your bot only plays as a goalie; this directly contrasts with the teamplay tag!
+# NOTE: Only add a tag for a special game mode if you bot properly supports it
+tags = []

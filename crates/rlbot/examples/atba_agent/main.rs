@@ -2,9 +2,11 @@ use std::{f32::consts::PI, sync::Arc};
 
 use rlbot::{
     RLBotConnection,
-    agents::{Agent, PacketQueue, run_agents},
-    flat::{ControllableInfo, ControllerState, FieldInfo, MatchConfiguration, PlayerInput},
-    util::RLBotEnvironment,
+    agents::{Agent, run_agents},
+    flat::{
+        ControllableInfo, ControllerState, FieldInfo, GamePacket, MatchConfiguration, PlayerInput,
+    },
+    util::{PacketQueue, RLBotEnvironment},
 };
 
 #[allow(dead_code)]
@@ -21,8 +23,8 @@ impl Agent for AtbaAgent {
     fn new(
         team: u32,
         controllable_info: ControllableInfo,
-        match_config: Arc<rlbot::flat::MatchConfiguration>,
-        field_info: Arc<rlbot::flat::FieldInfo>,
+        match_config: Arc<MatchConfiguration>,
+        field_info: Arc<FieldInfo>,
         _packet_queue: &mut PacketQueue,
     ) -> Self {
         let name = match_config
@@ -47,7 +49,7 @@ impl Agent for AtbaAgent {
         }
     }
 
-    fn tick(&mut self, game_packet: &rlbot::flat::GamePacket, packet_queue: &mut PacketQueue) {
+    fn tick(&mut self, game_packet: &GamePacket, packet_queue: &mut PacketQueue) {
         let Some(ball) = game_packet.balls.first() else {
             // If theres no ball, theres nothing to chase, don't do anything
             return;

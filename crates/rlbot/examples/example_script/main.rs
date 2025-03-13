@@ -1,8 +1,11 @@
 use rlbot::{
     RLBotConnection,
-    flat::{DesiredCarState, DesiredGameState, DesiredPhysics, MatchPhase, Vector3Partial},
+    flat::{
+        DesiredCarState, DesiredGameState, DesiredPhysics, FieldInfo, GamePacket,
+        MatchConfiguration, MatchPhase, Vector3Partial,
+    },
     scripts::{Script, run_script},
-    util::RLBotEnvironment,
+    util::{PacketQueue, RLBotEnvironment},
 };
 
 #[allow(dead_code)]
@@ -15,9 +18,9 @@ struct MyScript {
 impl Script for MyScript {
     fn new(
         agent_id: String,
-        match_config: rlbot::flat::MatchConfiguration,
-        _field_info: rlbot::flat::FieldInfo,
-        _packet_queue: &mut rlbot::agents::PacketQueue,
+        match_config: MatchConfiguration,
+        _field_info: FieldInfo,
+        _packet_queue: &mut PacketQueue,
     ) -> Self {
         let name = match_config
             .script_configurations
@@ -38,11 +41,7 @@ impl Script for MyScript {
         }
     }
 
-    fn on_packet(
-        &mut self,
-        game_packet: rlbot::flat::GamePacket,
-        packet_queue: &mut rlbot::agents::PacketQueue,
-    ) {
+    fn on_packet(&mut self, game_packet: GamePacket, packet_queue: &mut PacketQueue) {
         if game_packet.match_info.match_phase != MatchPhase::Active {
             return;
         }
@@ -91,7 +90,7 @@ fn main() {
 
     // Blocking.
     run_script::<MyScript>(agent_id.clone(), true, true, rlbot_connection)
-        .expect("run_agents crashed");
+        .expect("run_script crashed");
 
-    println!("Agent(s) with agent_id `{agent_id}` exited nicely");
+    println!("Script with agent_id `{agent_id}` exited nicely");
 }

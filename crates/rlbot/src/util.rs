@@ -1,4 +1,6 @@
-use std::env;
+use std::{env, io::Write, mem};
+
+use crate::{Packet, RLBotConnection, RLBotError};
 
 pub struct RLBotEnvironment {
     /// Will fallback to 127.0.0.1:23234
@@ -26,4 +28,55 @@ impl RLBotEnvironment {
             agent_id,
         }
     }
+}
+
+/// A queue of packets to be sent to RLBotServer
+pub struct PacketQueue {
+    internal_queue: Vec<Packet>,
+}
+
+impl Default for PacketQueue {
+    fn default() -> Self {
+        Self::new(16)
+    }
+}
+
+impl PacketQueue {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            internal_queue: Vec::with_capacity(capacity),
+        }
+    }
+
+    pub fn push(&mut self, packet: impl Into<Packet>) {
+        self.internal_queue.push(packet.into());
+    }
+
+    pub(crate) fn empty(&mut self) -> Vec<Packet> {
+        mem::take(&mut self.internal_queue)
+    }
+}
+
+pub(crate) fn write_multiple_packets(
+    connection: &mut RLBotConnection,
+    packets: impl Iterator<Item = Packet>,
+) -> Result<(), RLBotError> {
+    let to_write = packets
+        // convert Packet to Vec<u8> that RLBotServer can understand
+        .flat_map(|x| {
+            let data_type_bin = x.data_type().to_be_bytes().to_vec();
+            let payload = x.build(&mut connection.builder);
+            let data_len_bin = u16::try_from(payload.len())
+                .expect("Payload can't be greater than a u16")
+                .to_be_bytes()
+                .to_vec();
+
+            [data_type_bin, data_len_bin, payload].concat()
+        })
+        .collect::<Vec<_>>();
+
+    connection.stream.write_all(&to_write)?;
+    connection.stream.flush()?;
+
+    Ok(())
 }

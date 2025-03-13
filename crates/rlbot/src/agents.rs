@@ -1,12 +1,10 @@
-use std::{
-    io::Write,
-    mem,
-    sync::Arc,
-    thread::{self},
-    vec,
-};
+use std::{mem, sync::Arc, thread};
 
-use crate::{Packet, RLBotConnection, RLBotError, StartingInfo, flat::*};
+use crate::{
+    Packet, RLBotConnection, StartingInfo,
+    flat::*,
+    util::{PacketQueue, write_multiple_packets},
+};
 
 #[allow(unused_variables)]
 pub trait Agent {
@@ -28,33 +26,6 @@ pub enum AgentError {
     AgentPanic,
     #[error("RLBot failed")]
     PacketParseError(#[from] crate::RLBotError),
-}
-
-/// A queue of packets to be sent to RLBotServer
-pub struct PacketQueue {
-    internal_queue: Vec<Packet>,
-}
-
-impl Default for PacketQueue {
-    fn default() -> Self {
-        Self::new(16)
-    }
-}
-
-impl PacketQueue {
-    pub fn new(capacity: usize) -> Self {
-        Self {
-            internal_queue: Vec::with_capacity(capacity),
-        }
-    }
-
-    pub fn push(&mut self, packet: impl Into<Packet>) {
-        self.internal_queue.push(packet.into());
-    }
-
-    pub(crate) fn empty(&mut self) -> Vec<Packet> {
-        mem::take(&mut self.internal_queue)
-    }
 }
 
 /// Run multiple agents with n agents per thread. They share a connection.
@@ -138,18 +109,23 @@ pub fn run_agents<T: Agent>(
             return Err(AgentError::AgentPanic);
         }
     }
-    write_multiple_packets(&mut connection, to_send.iter_mut().flat_map(mem::take))?;
 
     // We only need to send one init complete with the first
     // spawn id even though we may be running multiple bots.
-    connection.send_packet(Packet::InitComplete)?;
+    write_multiple_packets(
+        &mut connection,
+        to_send
+            .iter_mut()
+            .flat_map(mem::take)
+            .chain([Packet::InitComplete]),
+    )?;
 
     // Main loop, broadcast packet to all of the bots, then wait for all of the outgoing vecs
     let mut ball_prediction = None;
     let mut game_packet = None;
     'main_loop: loop {
         connection.set_nonblocking(true)?;
-        while let Ok(Some(packet)) = connection.try_recv_packet() {
+        while let Ok(packet) = connection.recv_packet() {
             let packet = Arc::new(packet);
 
             match &*packet {
@@ -259,28 +235,4 @@ fn run_agent<T: Agent>(
 
     drop(incoming_recver);
     drop(outgoing_sender);
-}
-
-pub(crate) fn write_multiple_packets(
-    connection: &mut RLBotConnection,
-    packets: impl Iterator<Item = Packet>,
-) -> Result<(), RLBotError> {
-    let to_write = packets
-        // convert Packet to Vec<u8> that RLBotServer can understand
-        .flat_map(|x| {
-            let data_type_bin = x.data_type().to_be_bytes().to_vec();
-            let payload = x.build(&mut connection.builder);
-            let data_len_bin = u16::try_from(payload.len())
-                .expect("Payload can't be greater than a u16")
-                .to_be_bytes()
-                .to_vec();
-
-            [data_type_bin, data_len_bin, payload].concat()
-        })
-        .collect::<Vec<_>>();
-
-    connection.stream.write_all(&to_write)?;
-    connection.stream.flush()?;
-
-    Ok(())
 }
