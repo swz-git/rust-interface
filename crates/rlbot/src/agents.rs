@@ -1,7 +1,6 @@
 use std::{
     io::Write,
     mem,
-    num::NonZeroUsize,
     sync::Arc,
     thread::{self},
     vec,
@@ -73,9 +72,7 @@ pub fn run_agents<T: Agent>(
     wants_ball_predictions: bool,
     wants_comms: bool,
     mut connection: RLBotConnection,
-    n_agents_per_thread: Option<NonZeroUsize>,
 ) -> Result<(), AgentError> {
-    let n_agents_per_thread = n_agents_per_thread.unwrap_or(NonZeroUsize::MIN).get();
     connection.send_packet(ConnectionSettings {
         agent_id,
         wants_ball_predictions,
@@ -97,33 +94,26 @@ pub fn run_agents<T: Agent>(
     let match_config = Arc::new(match_configuration);
     let field_info = Arc::new(field_info);
 
-    let num_agents = controllable_team_info.controllables.len();
-    let num_threads = num_agents.div_ceil(n_agents_per_thread);
+    let num_threads = controllable_team_info.controllables.len();
     let mut threads = Vec::with_capacity(num_threads);
 
     let (outgoing_sender, outgoing_recver) = kanal::unbounded::<Vec<Packet>>();
-    for (i, controllable_info) in controllable_team_info
-        .controllables
-        .chunks(n_agents_per_thread)
-        .enumerate()
-    {
+    for (i, controllable_info) in controllable_team_info.controllables.into_iter().enumerate() {
         let (incoming_sender, incoming_recver) = kanal::unbounded::<Arc<Packet>>();
         let match_config = match_config.clone();
         let field_info = field_info.clone();
 
         let outgoing_sender = outgoing_sender.clone();
-        let controllable_info = controllable_info.to_vec();
 
         threads.push((
             incoming_sender,
             thread::Builder::new()
                 .name(format!(
-                    "Agent thread {i} (indicies {}-{})",
-                    controllable_info.first().unwrap().index,
-                    controllable_info.last().unwrap().index
+                    "Agent thread {i} (index {})",
+                    controllable_info.index,
                 ))
                 .spawn(move || {
-                    run_agents_group::<T>(
+                    run_agent::<T>(
                         incoming_recver,
                         controllable_team_info.team,
                         controllable_info,
@@ -140,12 +130,21 @@ pub fn run_agents<T: Agent>(
     // which we rely on for clean exiting
     drop(outgoing_sender);
 
+    let mut to_send: Vec<Vec<Packet>> = vec![Vec::new(); num_threads];
+    for reserved_packet_spot in &mut to_send {
+        if let Ok(messages) = outgoing_recver.recv() {
+            *reserved_packet_spot = messages;
+        } else {
+            return Err(AgentError::AgentPanic);
+        }
+    }
+    write_multiple_packets(&mut connection, to_send.iter_mut().flat_map(mem::take))?;
+
     // We only need to send one init complete with the first
     // spawn id even though we may be running multiple bots.
     connection.send_packet(Packet::InitComplete)?;
 
     // Main loop, broadcast packet to all of the bots, then wait for all of the outgoing vecs
-    let mut to_send: Vec<Vec<Packet>> = vec![Vec::new(); num_threads];
     let mut ball_prediction = None;
     let mut game_packet = None;
     'main_loop: loop {
@@ -213,27 +212,22 @@ pub fn run_agents<T: Agent>(
     Ok(())
 }
 
-fn run_agents_group<T: Agent>(
+fn run_agent<T: Agent>(
     incoming_recver: kanal::Receiver<Arc<Packet>>,
     team: u32,
-    controllable_info: Vec<ControllableInfo>,
+    controllable_info: ControllableInfo,
     match_config: Arc<MatchConfiguration>,
     field_info: Arc<FieldInfo>,
     outgoing_sender: kanal::Sender<Vec<Packet>>,
 ) {
-    let mut outgoing_queue_local = PacketQueue::new(controllable_info.len() * 2);
-    let mut bots = controllable_info
-        .into_iter()
-        .map(|controllable_info| {
-            T::new(
-                team,
-                controllable_info,
-                match_config.clone(),
-                field_info.clone(),
-                &mut outgoing_queue_local,
-            )
-        })
-        .collect::<Vec<_>>();
+    let mut outgoing_queue_local = PacketQueue::default();
+    let mut bot = T::new(
+        team,
+        controllable_info,
+        match_config.clone(),
+        field_info.clone(),
+        &mut outgoing_queue_local,
+    );
 
     outgoing_sender
         .send(outgoing_queue_local.empty())
@@ -246,20 +240,12 @@ fn run_agents_group<T: Agent>(
 
         match &*packet {
             Packet::None => break,
-            Packet::GamePacket(x) => {
-                for bot in &mut bots {
-                    bot.tick(x, &mut outgoing_queue_local);
-                }
-            }
+            Packet::GamePacket(x) => bot.tick(x, &mut outgoing_queue_local),
             Packet::MatchComm(x) => {
-                for bot in &mut bots {
-                    bot.on_match_comm(x, &mut outgoing_queue_local);
-                }
+                bot.on_match_comm(x, &mut outgoing_queue_local);
             }
             Packet::BallPrediction(x) => {
-                for bot in &mut bots {
-                    bot.on_ball_prediction(x);
-                }
+                bot.on_ball_prediction(x);
             }
             _ => unreachable!(), /* The rest of the packets are only client -> server */
         }
@@ -273,94 +259,6 @@ fn run_agents_group<T: Agent>(
 
     drop(incoming_recver);
     drop(outgoing_sender);
-}
-
-/// Run multiple agents on the current thread. They share a connection.
-/// Ok(()) means a successful exit; a None packet was received.
-///
-/// # Errors
-///
-/// Returns an error if an agent panics or if there is an error with the connection.
-pub fn run_agents_sync<T: Agent>(
-    agent_id: String,
-    wants_ball_predictions: bool,
-    wants_comms: bool,
-    mut connection: RLBotConnection,
-) -> Result<(), AgentError> {
-    connection.send_packet(ConnectionSettings {
-        agent_id,
-        wants_ball_predictions,
-        wants_comms,
-        close_between_matches: true,
-    })?;
-
-    let StartingInfo {
-        controllable_team_info,
-        match_configuration,
-        field_info,
-    } = connection.get_starting_info()?;
-
-    if controllable_team_info.controllables.is_empty() {
-        // run no bots? no problem, done
-        return Ok(());
-    }
-
-    let match_configuration = Arc::new(match_configuration);
-    let field_info = Arc::new(field_info);
-
-    let num_agents = controllable_team_info.controllables.len();
-    let mut outgoing_queue = PacketQueue::new(num_agents * 2);
-    let mut agents: Vec<_> = controllable_team_info
-        .controllables
-        .into_iter()
-        .map(|controllable_info| {
-            T::new(
-                controllable_team_info.team,
-                controllable_info,
-                match_configuration.clone(),
-                field_info.clone(),
-                &mut outgoing_queue,
-            )
-        })
-        .collect();
-
-    connection.send_packet(Packet::InitComplete)?;
-
-    let mut ball_prediction = None;
-    let mut game_packet = None;
-    'main_loop: loop {
-        connection.set_nonblocking(true)?;
-        while let Ok(Some(packet)) = connection.try_recv_packet() {
-            match packet {
-                Packet::None => break 'main_loop,
-                Packet::MatchComm(match_comm) => {
-                    for agent in &mut agents {
-                        agent.on_match_comm(&match_comm, &mut outgoing_queue);
-                    }
-                }
-                Packet::BallPrediction(ball_pred) => ball_prediction = Some(ball_pred),
-                Packet::GamePacket(gp) => game_packet = Some(gp),
-                _ => panic!("Unexpected packet: {:?}", packet),
-            }
-        }
-        connection.set_nonblocking(false)?;
-
-        if let Some(game_packet) = game_packet.take() {
-            if let Some(ball_prediction) = ball_prediction.take() {
-                for agent in &mut agents {
-                    agent.on_ball_prediction(&ball_prediction);
-                }
-            }
-
-            for agent in &mut agents {
-                agent.tick(&game_packet, &mut outgoing_queue);
-            }
-
-            write_multiple_packets(&mut connection, outgoing_queue.empty().into_iter())?;
-        }
-    }
-
-    Ok(())
 }
 
 pub(crate) fn write_multiple_packets(

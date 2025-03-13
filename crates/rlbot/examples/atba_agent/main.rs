@@ -1,4 +1,4 @@
-use std::{f32::consts::PI, num::NonZeroUsize, sync::Arc};
+use std::{f32::consts::PI, sync::Arc};
 
 use rlbot::{
     RLBotConnection,
@@ -105,19 +105,9 @@ fn main() {
     // If the hivemind field is set to true, one instance of your bot will handle
     // all of the bots in a team.
 
-    // run N agents per thread
-    // None runs 1 thread per agent
-    let n_agents_per_thread = Some(NonZeroUsize::new(16).unwrap());
-
     // Blocking.
-    run_agents::<AtbaAgent>(
-        agent_id.clone(),
-        true,
-        true,
-        rlbot_connection,
-        n_agents_per_thread,
-    )
-    .expect("run_agents crashed");
+    run_agents::<AtbaAgent>(agent_id.clone(), true, true, rlbot_connection)
+        .expect("run_agents crashed");
 
     println!("Agent(s) with agent_id `{agent_id}` exited nicely");
 }
