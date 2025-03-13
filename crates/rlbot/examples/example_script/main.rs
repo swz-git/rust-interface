@@ -76,7 +76,7 @@ impl Script for MyScript {
         packet_queue.push(DesiredGameState {
             car_states,
             ..Default::default()
-        })
+        });
     }
 }
 

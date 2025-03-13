@@ -42,6 +42,7 @@ impl Default for PacketQueue {
 }
 
 impl PacketQueue {
+    #[must_use]
     pub fn new(capacity: usize) -> Self {
         Self {
             internal_queue: Vec::with_capacity(capacity),

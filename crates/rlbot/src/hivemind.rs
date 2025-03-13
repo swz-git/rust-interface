@@ -36,7 +36,7 @@ pub fn run_hivemind<T: Hivemind>(
     mut connection: RLBotConnection,
 ) -> Result<(), HivemindError> {
     connection.send_packet(ConnectionSettings {
-        agent_id: agent_id.clone(),
+        agent_id,
         wants_ball_predictions,
         wants_comms,
         close_between_matches: true,
@@ -71,7 +71,7 @@ pub fn run_hivemind<T: Hivemind>(
                 }
                 Packet::BallPrediction(ball_pred) => ball_prediction = Some(ball_pred),
                 Packet::GamePacket(gp) => game_packet = Some(gp),
-                _ => panic!("Unexpected packet: {:?}", packet),
+                _ => panic!("Unexpected packet: {packet:?}"),
             }
         }
         connection.set_nonblocking(false)?;

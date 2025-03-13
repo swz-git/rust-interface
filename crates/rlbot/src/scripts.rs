@@ -70,7 +70,7 @@ pub fn run_script<T: Script>(
                 }
                 Packet::BallPrediction(ball_pred) => ball_prediction = Some(ball_pred),
                 Packet::GamePacket(gp) => game_packet = Some(gp),
-                _ => panic!("Unexpected packet: {:?}", packet),
+                _ => panic!("Unexpected packet: {packet:?}"),
             }
         }
         connection.set_nonblocking(false)?;

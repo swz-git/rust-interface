@@ -147,7 +147,7 @@ pub fn run_agents<T: Agent>(
                 }
                 Packet::BallPrediction(_) => ball_prediction = Some(packet),
                 Packet::GamePacket(_) => game_packet = Some(packet),
-                _ => panic!("Unexpected packet: {:?}", packet),
+                _ => panic!("Unexpected packet: {packet:?}"),
             }
         }
         connection.set_nonblocking(false)?;
@@ -166,8 +166,6 @@ pub fn run_agents<T: Agent>(
                     return Err(AgentError::AgentPanic);
                 }
             }
-
-            ball_prediction = None;
 
             for reserved_packet_spot in &mut to_send {
                 if let Ok(messages) = outgoing_recver.recv() {
@@ -200,8 +198,8 @@ fn run_agent<T: Agent>(
     let mut bot = T::new(
         team,
         controllable_info,
-        match_config.clone(),
-        field_info.clone(),
+        match_config,
+        field_info,
         &mut outgoing_queue_local,
     );
 
