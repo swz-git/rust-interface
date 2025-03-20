@@ -11,7 +11,7 @@ use crate::{
 pub trait Script {
     fn new(
         agent_id: String,
-        match_config: MatchConfiguration,
+        match_configuration: MatchConfiguration,
         field_info: FieldInfo,
         packet_queue: &mut PacketQueue,
     ) -> Self;

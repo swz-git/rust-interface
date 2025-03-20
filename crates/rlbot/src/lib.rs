@@ -249,26 +249,26 @@ impl RLBotConnection {
 
     pub fn get_starting_info(&mut self) -> Result<StartingInfo, RLBotError> {
         let mut cti = None;
-        let mut match_config = None;
+        let mut match_configuration = None;
         let mut field_info = None;
 
         loop {
             let packet = self.recv_packet()?;
             match packet {
                 Packet::ControllableTeamInfo(x) => cti = Some(x),
-                Packet::MatchConfiguration(x) => match_config = Some(x),
+                Packet::MatchConfiguration(x) => match_configuration = Some(x),
                 Packet::FieldInfo(x) => field_info = Some(x),
                 _ => {}
             }
 
-            if cti.is_some() && match_config.is_some() && field_info.is_some() {
+            if cti.is_some() && match_configuration.is_some() && field_info.is_some() {
                 break;
             }
         }
 
         Ok(StartingInfo {
             controllable_team_info: cti.unwrap(),
-            match_configuration: match_config.unwrap(),
+            match_configuration: match_configuration.unwrap(),
             field_info: field_info.unwrap(),
         })
     }

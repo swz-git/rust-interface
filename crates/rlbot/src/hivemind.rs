@@ -12,7 +12,7 @@ use crate::{
 pub trait Hivemind {
     fn new(
         controllable_team_info: ControllableTeamInfo,
-        match_config: MatchConfiguration,
+        match_configuration: MatchConfiguration,
         field_info: FieldInfo,
         packet_queue: &mut PacketQueue,
     ) -> Self;

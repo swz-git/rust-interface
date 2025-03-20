@@ -11,7 +11,7 @@ pub trait Agent {
     fn new(
         team: u32,
         controllable_info: ControllableInfo,
-        match_config: Arc<MatchConfiguration>,
+        match_configuration: Arc<MatchConfiguration>,
         field_info: Arc<FieldInfo>,
         packet_queue: &mut PacketQueue,
     ) -> Self;
@@ -62,7 +62,7 @@ pub fn run_agents<T: Agent>(
         return Ok(());
     }
 
-    let match_config = Arc::new(match_configuration);
+    let match_configuration = Arc::new(match_configuration);
     let field_info = Arc::new(field_info);
 
     let num_threads = controllable_team_info.controllables.len();
@@ -71,7 +71,7 @@ pub fn run_agents<T: Agent>(
     let (outgoing_sender, outgoing_recver) = kanal::unbounded::<Vec<Packet>>();
     for (i, controllable_info) in controllable_team_info.controllables.into_iter().enumerate() {
         let (incoming_sender, incoming_recver) = kanal::unbounded::<Arc<Packet>>();
-        let match_config = match_config.clone();
+        let match_configuration = match_configuration.clone();
         let field_info = field_info.clone();
 
         let outgoing_sender = outgoing_sender.clone();
@@ -88,7 +88,7 @@ pub fn run_agents<T: Agent>(
                         incoming_recver,
                         controllable_team_info.team,
                         controllable_info,
-                        match_config,
+                        match_configuration,
                         field_info,
                         outgoing_sender,
                     );
@@ -190,7 +190,7 @@ fn run_agent<T: Agent>(
     incoming_recver: kanal::Receiver<Arc<Packet>>,
     team: u32,
     controllable_info: ControllableInfo,
-    match_config: Arc<MatchConfiguration>,
+    match_configuration: Arc<MatchConfiguration>,
     field_info: Arc<FieldInfo>,
     outgoing_sender: kanal::Sender<Vec<Packet>>,
 ) {
@@ -198,7 +198,7 @@ fn run_agent<T: Agent>(
     let mut bot = T::new(
         team,
         controllable_info,
-        match_config,
+        match_configuration,
         field_info,
         &mut outgoing_queue_local,
     );
