@@ -226,7 +226,7 @@ impl RLBotConnection {
 
         self.stream.read_exact(buf)?;
 
-        let packet = Packet::from_payload(data_type, &self.recv_buf)?;
+        let packet = Packet::from_payload(data_type, buf)?;
 
         Ok(packet)
     }
