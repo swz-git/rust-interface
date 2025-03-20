@@ -190,7 +190,7 @@ pub struct StartingInfo {
 pub struct RLBotConnection {
     stream: TcpStream,
     builder: planus::Builder,
-    recv_buf: Vec<u8>,
+    recv_buf: Box<[u8]>,
 }
 
 impl RLBotConnection {
@@ -222,8 +222,9 @@ impl RLBotConnection {
         let data_type = u16::from_be_bytes([buf[0], buf[1]]);
         let data_len = u16::from_be_bytes([buf[2], buf[3]]);
 
-        self.recv_buf.resize(data_len as usize, 0);
-        self.stream.read_exact(&mut self.recv_buf)?;
+        let buf = &mut self.recv_buf[0..data_len as usize];
+
+        self.stream.read_exact(buf)?;
 
         let packet = Packet::from_payload(data_type, &self.recv_buf)?;
 
@@ -243,7 +244,7 @@ impl RLBotConnection {
         Ok(Self {
             stream,
             builder: planus::Builder::with_capacity(1024),
-            recv_buf: Vec::with_capacity(1024),
+            recv_buf: vec![0; u16::MAX as usize].into_boxed_slice(),
         })
     }
 
