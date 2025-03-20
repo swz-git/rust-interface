@@ -107,7 +107,7 @@ fn main() {
         server_addr,
         agent_id,
     } = RLBotEnvironment::from_env();
-    let agent_id = agent_id.unwrap_or_else(|| "rlbot/rust-example/atba_agent".into());
+    let agent_id = agent_id.unwrap_or_else(|| "rlbot/rust-example/atba_hivemind".into());
 
     println!("Connecting");
 
