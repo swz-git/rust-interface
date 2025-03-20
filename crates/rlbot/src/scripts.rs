@@ -15,7 +15,7 @@ pub trait Script {
         field_info: FieldInfo,
         packet_queue: &mut PacketQueue,
     ) -> Self;
-    fn on_packet(&mut self, game_packet: GamePacket, packet_queue: &mut PacketQueue);
+    fn tick(&mut self, game_packet: GamePacket, packet_queue: &mut PacketQueue);
     fn on_match_comm(&mut self, match_comm: MatchComm, packet_queue: &mut PacketQueue) {}
     fn on_ball_prediction(&mut self, ball_prediction: BallPrediction) {}
 }
@@ -80,7 +80,7 @@ pub fn run_script<T: Script>(
                 script.on_ball_prediction(ball_prediction);
             }
 
-            script.on_packet(game_packet, &mut outgoing_queue);
+            script.tick(game_packet, &mut outgoing_queue);
 
             write_multiple_packets(&mut connection, outgoing_queue.empty().into_iter())?;
         }

@@ -41,7 +41,7 @@ impl Script for MyScript {
         }
     }
 
-    fn on_packet(&mut self, game_packet: GamePacket, packet_queue: &mut PacketQueue) {
+    fn tick(&mut self, game_packet: GamePacket, packet_queue: &mut PacketQueue) {
         if game_packet.match_info.match_phase != MatchPhase::Active {
             return;
         }
