@@ -85,7 +85,7 @@ fn main() {
         server_addr,
         agent_id,
     } = RLBotEnvironment::from_env();
-    let agent_id = agent_id.unwrap_or_else(|| "rlbot/rust-example/example_script".into());
+    let agent_id = agent_id.unwrap_or_else(|| "rlbot/rust-example/high_jump_script".into());
     let rlbot_connection = RLBotConnection::new(&server_addr).expect("connection");
 
     // Blocking.
