@@ -131,7 +131,9 @@ impl Packet {
         }
 
         p!(
+            // Empty payload:
             None, InitComplete;
+            // Flatbuffer payload:
             GamePacket, FieldInfo, StartCommand, MatchConfiguration, PlayerInput,
             DesiredGameState, RenderGroup, RemoveRenderGroup, MatchComm, BallPrediction,
             ConnectionSettings, StopCommand, SetLoadout, ControllableTeamInfo
@@ -190,7 +192,7 @@ pub struct StartingInfo {
 pub struct RLBotConnection {
     stream: TcpStream,
     builder: planus::Builder,
-    recv_buf: Box<[u8]>,
+    recv_buf: Box<[u8; u16::MAX as usize]>,
 }
 
 impl RLBotConnection {
@@ -244,31 +246,34 @@ impl RLBotConnection {
         Ok(Self {
             stream,
             builder: planus::Builder::with_capacity(1024),
-            recv_buf: vec![0; u16::MAX as usize].into_boxed_slice(),
+            recv_buf: Box::new([0u8; u16::MAX as usize]),
         })
     }
 
     pub fn get_starting_info(&mut self) -> Result<StartingInfo, RLBotError> {
-        let mut cti = None;
+        let mut controllable_team_info = None;
         let mut match_configuration = None;
         let mut field_info = None;
 
         loop {
             let packet = self.recv_packet()?;
             match packet {
-                Packet::ControllableTeamInfo(x) => cti = Some(x),
+                Packet::ControllableTeamInfo(x) => controllable_team_info = Some(x),
                 Packet::MatchConfiguration(x) => match_configuration = Some(x),
                 Packet::FieldInfo(x) => field_info = Some(x),
                 _ => {}
             }
 
-            if cti.is_some() && match_configuration.is_some() && field_info.is_some() {
+            if controllable_team_info.is_some()
+                && match_configuration.is_some()
+                && field_info.is_some()
+            {
                 break;
             }
         }
 
         Ok(StartingInfo {
-            controllable_team_info: cti.unwrap(),
+            controllable_team_info: controllable_team_info.unwrap(),
             match_configuration: match_configuration.unwrap(),
             field_info: field_info.unwrap(),
         })

@@ -56,7 +56,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         // comment all existing includes
         contents = contents.replace("include \"", "// include \"");
 
-        // include all files (planus isn't smart enough to auto include the parent file)
+        // include all files (since we're removing root_types the root_types aren't auto-included)
         contents = include_all_str.clone() + &contents;
 
         fs::File::create(temp_file_path)?.write_all(contents.as_bytes())?;

@@ -8,6 +8,7 @@ use crate::{
 
 #[allow(unused_variables)]
 pub trait Agent {
+    // TODO: Maybe pass a struct?
     fn new(
         team: u32,
         controllable_info: ControllableInfo,
@@ -39,6 +40,7 @@ pub enum AgentError {
 ///
 /// Panics if a thread can't be spawned for each agent.
 pub fn run_agents<T: Agent>(
+    // TODO: Maybe pass a struct?
     agent_id: String,
     wants_ball_predictions: bool,
     wants_comms: bool,
@@ -110,8 +112,6 @@ pub fn run_agents<T: Agent>(
         }
     }
 
-    // We only need to send one init complete with the first
-    // spawn id even though we may be running multiple bots.
     write_multiple_packets(
         &mut connection,
         to_send
