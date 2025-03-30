@@ -10,6 +10,8 @@ license-file.workspace = true
 kanal = { version = "0.1.0-pre8", default-features = false }
 thiserror = "2.0.12"
 rlbot_flat = { path = "../rlbot_flat" }
+mio = "1.0.3"
+socket2 = "0.5.9"
 
 [features]
 default = ["glam"]

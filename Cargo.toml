@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/rlbot", "crates/rlbot_flat"]
+members = ["rlbot", "rlbot_flat"]
 resolver = "3"
 package.license-file = "LICENSE"
 package.version = "0.1.0"
