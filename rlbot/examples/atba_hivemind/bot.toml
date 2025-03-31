@@ -9,7 +9,7 @@ hivemind = true
 [details]
 description = "Rust always-towards-ball-agent."
 # fun_fact = ""
-# source_link = "https://github.com/swz-git/rust-interface"
+# source_link = "https://github.com/RLBot/rust-interface"
 developer = ""
 language = "rust"
 # logo_file = "logo.png"
