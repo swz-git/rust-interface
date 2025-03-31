@@ -1,9 +1,11 @@
 use std::{mem, sync::Arc, thread};
 
+use monoio::io::{AsyncReadRent, AsyncReadRentExt as _, AsyncWriteRentExt as _};
+
 use crate::{
-    Packet, RLBotConnection, StartingInfo,
+    Packet, RLBotConnection, RLBotError, StartingInfo,
     flat::*,
-    util::{PacketQueue, write_multiple_packets},
+    util::{PacketQueue, build_multiple_packets, write_multiple_packets},
 };
 
 #[allow(unused_variables)]
@@ -47,7 +49,7 @@ pub fn run_agents<T: Agent>(
     mut connection: RLBotConnection,
 ) -> Result<(), AgentError> {
     connection.send_packet(ConnectionSettings {
-        agent_id,
+        agent_id: agent_id.clone(),
         wants_ball_predictions,
         wants_comms,
         close_between_matches: true,
@@ -112,6 +114,7 @@ pub fn run_agents<T: Agent>(
         }
     }
 
+    // Write initial packets like SetLoadout and also append a InitComplete to signal that we are ready to play
     write_multiple_packets(
         &mut connection,
         to_send
@@ -120,64 +123,64 @@ pub fn run_agents<T: Agent>(
             .chain([Packet::InitComplete]),
     )?;
 
-    // Main loop, broadcast packet to all of the bots, then wait for all of the outgoing vecs
-    let mut ball_prediction = None;
-    let mut game_packet = None;
-    'main_loop: loop {
-        connection.set_nonblocking(true)?;
-        while let Ok(packet) = connection.recv_packet() {
-            let packet = Arc::new(packet);
+    #[cfg(target_os = "linux")]
+    type MonoIoDriver = monoio::IoUringDriver;
+    #[cfg(not(target_os = "linux"))]
+    type MonoIoDriver = monoio::LegacyDriver;
 
-            match &*packet {
-                Packet::None => {
-                    for (incoming_sender, _) in &threads {
-                        if incoming_sender.send(packet.clone()).is_err() {
-                            return Err(AgentError::AgentPanic);
-                        }
-                    }
+    let incoming_senders_async = threads
+        .iter()
+        .map(|(sync_sender, _)| sync_sender.clone_async())
+        .collect::<Vec<_>>();
 
-                    break 'main_loop;
-                }
-                Packet::MatchComm(_) => {
-                    for (incoming_sender, _) in &threads {
-                        if incoming_sender.send(packet.clone()).is_err() {
-                            return Err(AgentError::AgentPanic);
-                        }
-                    }
-                }
-                Packet::BallPrediction(_) => ball_prediction = Some(packet),
-                Packet::GamePacket(_) => game_packet = Some(packet),
-                _ => panic!("Unexpected packet: {packet:?}"),
-            }
+    async fn handle_packet(
+        stream: &mut monoio::net::TcpStream,
+        incoming_senders: &[kanal::AsyncSender<Arc<Packet>>],
+        packet_type: u16,
+        packet_len: u16,
+    ) -> Result<(), AgentError> {
+        let (packet_read_result, packet_raw) =
+            stream.read_exact(vec![0u8; packet_len as usize]).await;
+
+        packet_read_result.map_err(RLBotError::from)?;
+
+        let packet =
+            Arc::new(Packet::from_payload(packet_type, &packet_raw).map_err(RLBotError::from)?);
+
+        for sender in incoming_senders {
+            sender
+                .send(packet.clone())
+                .await
+                .expect("incoming_sender.send failed");
         }
-        connection.set_nonblocking(false)?;
 
-        if let Some(game_packet) = game_packet.take() {
-            if let Some(ball_prediction) = ball_prediction.take() {
-                for (incoming_sender, _) in &threads {
-                    if incoming_sender.send(ball_prediction.clone()).is_err() {
-                        return Err(AgentError::AgentPanic);
-                    }
-                }
-            }
-
-            for (incoming_sender, _) in &threads {
-                if incoming_sender.send(game_packet.clone()).is_err() {
-                    return Err(AgentError::AgentPanic);
-                }
-            }
-
-            for reserved_packet_spot in &mut to_send {
-                if let Ok(messages) = outgoing_recver.recv() {
-                    *reserved_packet_spot = messages;
-                } else {
-                    break 'main_loop;
-                }
-            }
-
-            write_multiple_packets(&mut connection, to_send.iter_mut().flat_map(mem::take))?;
-        }
+        Ok(())
     }
+
+    let outgoing_recver = outgoing_recver.clone();
+
+    monoio::start::<MonoIoDriver, _>(async move {
+        let mut stream = monoio::net::TcpStream::from_std(connection.stream)
+            .expect("couldn't convert std stream to monoio stream");
+        let mut builder = rlbot_flat::planus::Builder::with_capacity(u16::MAX as usize);
+        let incoming_senders = incoming_senders_async;
+        let outgoing_recver = outgoing_recver.to_async();
+
+        loop {
+            monoio::select! {
+                u32_r = stream.read_u32() => {
+                    let bytes = u32_r.map_err(RLBotError::from)?.to_be_bytes();
+                    let packet_type = u16::from_be_bytes([bytes[0], bytes[1]]);
+                    let packet_len = u16::from_be_bytes([bytes[2], bytes[3]]);
+                    handle_packet(&mut stream, &incoming_senders, packet_type, packet_len).await?;
+                }
+                packets = outgoing_recver.recv() => {
+                    stream.write_all(build_multiple_packets(&mut builder, packets.expect("outgoing_recver.recv failed").into_iter())).await.0.map_err(RLBotError::from)?;
+                }
+            }
+        }
+        Ok::<(), AgentError>(())
+    })?;
 
     for (_, handle) in threads {
         handle.join().unwrap();
@@ -224,11 +227,9 @@ fn run_agent<T: Agent>(
             _ => unreachable!(), /* The rest of the packets are only client -> server */
         }
 
-        if matches!(*packet, Packet::GamePacket(_)) {
-            outgoing_sender
-                .send(outgoing_queue_local.empty())
-                .expect("Couldn't send outgoing");
-        }
+        outgoing_sender
+            .send(outgoing_queue_local.empty())
+            .expect("Couldn't send outgoing");
     }
 
     drop(incoming_recver);

@@ -62,11 +62,24 @@ pub(crate) fn write_multiple_packets(
     connection: &mut RLBotConnection,
     packets: impl Iterator<Item = Packet>,
 ) -> Result<(), RLBotError> {
-    let to_write = packets
+    connection.stream.write_all(&mut build_multiple_packets(
+        &mut connection.builder,
+        packets,
+    ))?;
+    connection.stream.flush()?;
+
+    Ok(())
+}
+
+pub(crate) fn build_multiple_packets(
+    builder: &mut rlbot_flat::planus::Builder,
+    packets: impl Iterator<Item = Packet>,
+) -> Box<[u8]> {
+    packets
         // convert Packet to Vec<u8> that RLBotServer can understand
         .flat_map(|x| {
             let data_type_bin = x.data_type().to_be_bytes().to_vec();
-            let payload = x.build(&mut connection.builder);
+            let payload = x.build(builder);
             let data_len_bin = u16::try_from(payload.len())
                 .expect("Payload can't be greater than a u16")
                 .to_be_bytes()
@@ -74,10 +87,5 @@ pub(crate) fn write_multiple_packets(
 
             [data_type_bin, data_len_bin, payload].concat()
         })
-        .collect::<Vec<_>>();
-
-    connection.stream.write_all(&to_write)?;
-    connection.stream.flush()?;
-
-    Ok(())
+        .collect::<Box<[u8]>>()
 }
