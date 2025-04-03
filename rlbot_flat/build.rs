@@ -2,7 +2,7 @@ use std::{
     error::Error,
     fs::{self},
     io::Write,
-    path::{Path, PathBuf},
+    path::Path,
     time::Instant,
 };
 
