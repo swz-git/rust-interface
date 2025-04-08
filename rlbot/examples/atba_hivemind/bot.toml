@@ -2,8 +2,8 @@
 name = "Rust Example Bot (atba_hivemind)"
 agent_id = "rlbot/rust-example/atba_hivemind"
 # loadout_file = "loadout.toml"
-run_command = "..\\..\\..\\..\\target\\release\\examples\\atba_hivemind.exe"
-run_command_linux = "../../../../target/release/examples/atba_hivemind"
+run_command = "..\\..\\..\\target\\release\\examples\\atba_hivemind.exe"
+run_command_linux = "../../../target/release/examples/atba_hivemind"
 hivemind = true
 
 [details]

@@ -2,8 +2,8 @@
 name = "Rust Example Bot (atba_raw)"
 agent_id = "rlbot/rust-example/atba_raw"
 # loadout_file = "loadout.toml"
-run_command = "..\\..\\..\\..\\target\\release\\examples\\atba_raw.exe"
-run_command_linux = "../../../../target/release/examples/atba_raw"
+run_command = "..\\..\\..\\target\\release\\examples\\atba_raw.exe"
+run_command_linux = "../../../target/release/examples/atba_raw"
 # the "raw" atba example doesn't support hivemind mode
 hivemind = false
 
