@@ -6,13 +6,24 @@ use std::{
     time::Instant,
 };
 
-const SCHEMA_DIR: &str = "../../flatbuffers-schema";
+const SCHEMA_DIR: &str = "../flatbuffers-schema";
 const OUT_FILE: &str = "./src/planus_flat.rs";
+
+fn get_git_rev(dir: impl AsRef<Path>) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .current_dir(dir)
+        .args(&["rev-parse", "--short", "HEAD"])
+        .output()
+        .ok()?;
+
+    Some(String::from_utf8(output.stdout).ok()?.trim().to_string())
+    // Some(format!("{:?}", dir.as_ref()))
+}
 
 // this is pretty janky, but it works
 
 fn main() -> Result<(), Box<dyn Error>> {
-    println!("cargo:rerun-if-changed=../../flatbuffers-schema");
+    println!("cargo:rerun-if-changed=../flatbuffers-schema");
     println!("cargo:rerun-if-changed=build.rs");
 
     let start_time = Instant::now();
@@ -20,6 +31,8 @@ fn main() -> Result<(), Box<dyn Error>> {
     if !Path::new(SCHEMA_DIR).exists() {
         Err("Couldn't find flatbuffers schema folder")?;
     }
+
+    let schema_dir_git_commit_hash = get_git_rev(SCHEMA_DIR).unwrap_or_else(|| "UNKNOWN".into());
 
     let fbs_file_paths: Vec<_> = fs::read_dir(SCHEMA_DIR)?
         .map(|x| x.unwrap().path())
@@ -69,12 +82,9 @@ fn main() -> Result<(), Box<dyn Error>> {
     // No idea why planus renames RLBot to RlBot but this fixes it
     res = res.replace("RlBot", "RLBot");
 
-    // flatbuffers-schemaTEMP looks ugly, fix it
-    res = res.replace("flatbuffers-schemaTEMP", "rlbot/flatbuffers-schema");
-
     let now = Instant::now();
     let time_taken = format!(
-        "// build.rs took {:?} of which planus took {:?}\n",
+        "// build.rs took {:?} of which planus took {:?}\n// built from schema {schema_dir_git_commit_hash}\n",
         now.duration_since(start_time),
         now.duration_since(start_time_planus)
     );
